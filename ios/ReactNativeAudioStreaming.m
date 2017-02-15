@@ -96,7 +96,30 @@ RCT_EXPORT_METHOD(play:(NSString *) streamUrl options:(NSDictionary *)options)
       [self registerRemoteControlEvents];
    }
    
-   [self setNowPlayingInfo:true];
+   // [self setNowPlayingInfo:true];
+}
+
+RCT_EXPORT_METHOD(updateTrackInfo:(NSDictionary *)options)
+{
+
+   if (!self.audioPlayer) {
+      return;
+   }
+
+   // set title, artist, album and artwork url if set
+   NSString *trackTitle = @"";
+   NSString *trackArtist = @"";
+   NSString *trackAlbum = @"";
+   NSString *artworkUrl = @"";
+   BOOL isPlaying = true;
+   if ([options objectForKey:@"isPlaying"]) isPlaying = [[options objectForKey:@"isPlaying"] boolValue];
+   if ([options objectForKey:@"trackTitle"]) trackTitle = [options objectForKey:@"trackTitle"];
+   if ([options objectForKey:@"trackArtist"]) trackArtist = [options objectForKey:@"trackArtist"];
+   if ([options objectForKey:@"trackAlbum"]) trackAlbum = [options objectForKey:@"trackAlbum"];
+   if ([options objectForKey:@"artworkUrl"]) artworkUrl = [options objectForKey:@"artworkUrl"];
+
+   [self setNowPlayingInfo:isPlaying title:trackTitle artist:trackArtist album:trackAlbum artworkUrl:artworkUrl];
+
 }
 
 RCT_EXPORT_METHOD(seekToTime:(double) seconds)
@@ -118,7 +141,7 @@ RCT_EXPORT_METHOD(goForward:(double) seconds)
    
    if (self.audioPlayer.duration < newtime) {
       [self.audioPlayer stop];
-      [self setNowPlayingInfo:false];
+      // [self setNowPlayingInfo:false];
    } else {
       [self.audioPlayer seekToTime:newtime];
    }
@@ -145,7 +168,7 @@ RCT_EXPORT_METHOD(pause)
       return;
    } else {
       [self.audioPlayer pause];
-      [self setNowPlayingInfo:false];
+      // [self setNowPlayingInfo:false];
       [self deactivate];
    }
 }
@@ -157,7 +180,7 @@ RCT_EXPORT_METHOD(resume)
    } else {
       [self activate];
       [self.audioPlayer resume];
-      [self setNowPlayingInfo:true];
+      // [self setNowPlayingInfo:true];
    }
 }
 
@@ -167,7 +190,7 @@ RCT_EXPORT_METHOD(stop)
       return;
    } else {
       [self.audioPlayer stop];
-      [self setNowPlayingInfo:false];
+      // [self setNowPlayingInfo:false];
       [self deactivate];
    }
 }
@@ -222,7 +245,7 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
                                                                                    @"key": @"StreamTitle",
                                                                                    @"value": self.currentSong
                                                                                    }];
-   [self setNowPlayingInfo:true];
+   // [self setNowPlayingInfo:true];
 }
 
 - (void)audioPlayer:(STKAudioPlayer *)player stateChanged:(STKAudioPlayerState)state previousState:(STKAudioPlayerState)previousState
@@ -431,22 +454,87 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
    [commandCenter.pauseCommand removeTarget:self];
 }
 
+/*
 - (void)setNowPlayingInfo:(bool)isPlaying
 {
    if (self.showNowPlayingInfo) {
-      // TODO Get artwork from stream
-      // MPMediaItemArtwork *artwork = [[MPMediaItemArtwork alloc]initWithImage:[UIImage imageNamed:@"webradio1"]];
-   
       NSString* appName = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleName"];
-      NSDictionary *nowPlayingInfo = [NSDictionary dictionaryWithObjectsAndKeys:
-                                      self.currentSong ? self.currentSong : @"", MPMediaItemPropertyAlbumTitle,
-                                      @"", MPMediaItemPropertyAlbumArtist,
-                                      appName ? appName : @"AppName", MPMediaItemPropertyTitle,
-                                      [NSNumber numberWithFloat:isPlaying ? 1.0f : 0.0], MPNowPlayingInfoPropertyPlaybackRate, nil];
-      [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
+      appName = appName ? appName : @"";
+
+      NSMutableDictionary *nowPlayingInfo = [[NSMutableDictionary alloc] init];
+      
+      NSArray *ta = [self.currentSong componentsSeparatedByString:@" - "];
+      NSString *title = ta[0] ? ta[0] : @"";
+      NSString *artist = ta[1] ? ta[1] : @"";
+      
+      [nowPlayingInfo setObject:@"Titolo" forKey:MPMediaItemPropertyTitle];
+      [nowPlayingInfo setObject:@"Artista" forKey:MPMediaItemPropertyArtist];
+      
+      [nowPlayingInfo setObject:@"Album" forKey:MPMediaItemPropertyAlbumTitle];
+      [nowPlayingInfo setObject:appName forKey:MPMediaItemPropertyTitle];
+      
+      [nowPlayingInfo setObject:[NSNumber numberWithFloat:isPlaying ? 1.0f : 0.0f] forKey:MPNowPlayingInfoPropertyPlaybackRate];
+
+      NSString *imageUrl = @"http://is4.mzstatic.com/image/thumb/Music62/v4/62/2b/b1/622bb1ec-ec55-2a1f-8a64-67d31d7d5328/source/600x600bb.jpg";
+      if(isPlaying) {
+         [self updateControlCenterImage:imageUrl];
+         [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
+      }
+      
    } else {
       [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
    }
+}
+*/
+
+- (void) setNowPlayingInfo:(bool)isPlaying title:(NSString*)trackTitle artist:(NSString*)trackArtist album:(NSString*)trackAlbum artworkUrl:(NSString*)artworkUrl
+{
+   if (self.showNowPlayingInfo) {
+      NSString* appName = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleName"];
+      appName = appName ? appName : @"";
+      
+      NSMutableDictionary *nowPlayingInfo = [[NSMutableDictionary alloc] init];
+      
+      [nowPlayingInfo setObject:trackTitle forKey:MPMediaItemPropertyTitle];
+      [nowPlayingInfo setObject:trackArtist forKey:MPMediaItemPropertyArtist];
+      
+      [nowPlayingInfo setObject:trackAlbum forKey:MPMediaItemPropertyAlbumTitle];
+      [nowPlayingInfo setObject:appName forKey:MPMediaItemPropertyTitle];
+      
+      [nowPlayingInfo setObject:[NSNumber numberWithFloat:isPlaying ? 1.0f : 0.0f] forKey:MPNowPlayingInfoPropertyPlaybackRate];
+   
+      if(isPlaying) {
+         [self updateControlCenterImage:artworkUrl];
+         [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
+      }
+      
+   } else {
+      [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
+   }
+   
+}
+
+- (void)updateControlCenterImage:(NSString *)imageStringUrl
+{
+   NSURL *imageUrl = [NSURL URLWithString:imageStringUrl];
+   dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+   dispatch_async(queue, ^{
+      
+      NSMutableDictionary *nowPlayingInfo = [NSMutableDictionary dictionary];
+      UIImage *artworkImage = [UIImage imageWithData:[NSData dataWithContentsOfURL:imageUrl]];
+      if(artworkImage == nil) return;
+      
+      MPMediaItemArtwork *albumArt = [[MPMediaItemArtwork alloc] initWithImage: artworkImage];
+      [nowPlayingInfo setValue:albumArt forKey:MPMediaItemPropertyArtwork];
+      
+      MPNowPlayingInfoCenter *infoCenter = [MPNowPlayingInfoCenter defaultCenter];
+      if(infoCenter.nowPlayingInfo) {
+         NSMutableDictionary *editNowPlayingInfo = [infoCenter.nowPlayingInfo mutableCopy];
+         [editNowPlayingInfo setObject:albumArt forKey:MPMediaItemPropertyArtwork];
+         infoCenter.nowPlayingInfo = editNowPlayingInfo;
+      } else infoCenter.nowPlayingInfo = nowPlayingInfo;
+
+   });
 }
 
 @end
