@@ -494,12 +494,13 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
       appName = appName ? appName : @"";
       
       NSMutableDictionary *nowPlayingInfo = [[NSMutableDictionary alloc] init];
-      
+
       [nowPlayingInfo setObject:trackTitle forKey:MPMediaItemPropertyTitle];
       [nowPlayingInfo setObject:trackArtist forKey:MPMediaItemPropertyArtist];
       
-      [nowPlayingInfo setObject:trackAlbum forKey:MPMediaItemPropertyAlbumTitle];
-      [nowPlayingInfo setObject:appName forKey:MPMediaItemPropertyTitle];
+      if([trackAlbum isEqualToString:@""]) [nowPlayingInfo setObject:appName forKey:MPMediaItemPropertyAlbumTitle];
+      else [nowPlayingInfo setObject:trackAlbum forKey:MPMediaItemPropertyAlbumTitle];
+
       
       [nowPlayingInfo setObject:[NSNumber numberWithFloat:isPlaying ? 1.0f : 0.0f] forKey:MPNowPlayingInfoPropertyPlaybackRate];
    
