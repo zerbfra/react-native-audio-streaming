@@ -10,6 +10,7 @@
 @property (nonatomic, readwrite) BOOL isPlayingWithOthers;
 @property (nonatomic, readwrite) BOOL showNowPlayingInfo;
 @property (nonatomic, readwrite) NSString *lastUrlString;
+@property (nonatomic, readwrite) NSDictionary *lastOptions;
 @property (nonatomic, retain) NSString *currentSong;
 
 - (void)play:(NSString *) streamUrl options:(NSDictionary *)options;

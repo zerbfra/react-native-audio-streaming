@@ -26,6 +26,7 @@ RCT_EXPORT_MODULE()
       self.audioPlayer = [[STKAudioPlayer alloc] initWithOptions:(STKAudioPlayerOptions){ .flushQueueOnSeek = YES }];
       [self.audioPlayer setDelegate:self];
       self.lastUrlString = @"";
+       self.lastOptions = [NSDictionary dictionary];
       [NSTimer scheduledTimerWithTimeInterval:0.5 target:self selector:@selector(tick:) userInfo:nil repeats:YES];
       
       NSLog(@"AudioPlayer initialized");
@@ -81,6 +82,7 @@ RCT_EXPORT_METHOD(play:(NSString *) streamUrl options:(NSDictionary *)options)
    }
 
    self.lastUrlString = streamUrl;
+   self.lastOptions = options;
    self.showNowPlayingInfo = false;
    
    if ([options objectForKey:@"showIniOSMediaCenter"]) {
@@ -436,14 +438,14 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
 - (MPRemoteCommandHandlerStatus)didReceivePlayCommand:(MPRemoteCommand *)event
 {
    NSLog(@"didReceivePlayCommand");
-   [self resume];
+   [self play:self.lastUrlString options:self.lastOptions];
    return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (MPRemoteCommandHandlerStatus)didReceivePauseCommand:(MPRemoteCommand *)event
 {
    NSLog(@"didReceivePauseCommand");
-   [self pause];
+   [self stop];
    return MPRemoteCommandHandlerStatusSuccess;
 }
 
@@ -490,7 +492,7 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
 - (void) setNowPlayingInfo:(bool)isPlaying title:(NSString*)trackTitle artist:(NSString*)trackArtist album:(NSString*)trackAlbum artworkUrl:(NSString*)artworkUrl
 {
    if (self.showNowPlayingInfo) {
-      NSString* appName = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleName"];
+      NSString* appName = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleDisplayName"];
       appName = appName ? appName : @"";
       
       NSMutableDictionary *nowPlayingInfo = [[NSMutableDictionary alloc] init];
