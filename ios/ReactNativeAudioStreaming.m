@@ -366,7 +366,7 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
    {
       case AVAudioSessionInterruptionTypeBegan:
          NSLog(@"Audio Session Interruption case started.");
-         [self.audioPlayer pause];
+         [self.audioPlayer stop];
          break;
          
       case AVAudioSessionInterruptionTypeEnded:
