@@ -432,6 +432,7 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
    MPRemoteCommandCenter *commandCenter = [MPRemoteCommandCenter sharedCommandCenter];
    [commandCenter.playCommand addTarget:self action:@selector(didReceivePlayCommand:)];
    [commandCenter.pauseCommand addTarget:self action:@selector(didReceivePauseCommand:)];
+   [commandCenter.togglePlayPauseCommand addTarget:self action:@selector(didReceiveToggleCommand:)];
    commandCenter.playCommand.enabled = YES;
    commandCenter.pauseCommand.enabled = YES;
    commandCenter.stopCommand.enabled = NO;
@@ -450,6 +451,36 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
 {
    NSLog(@"didReceivePauseCommand");
    [self stop];
+   return MPRemoteCommandHandlerStatusSuccess;
+}
+
+- (MPRemoteCommandHandlerStatus)didReceiveToggleCommand:(MPRemoteCommand *)event
+{
+   NSLog(@"didReceiveToggleCommand");
+   switch ([self.audioPlayer state]) {
+      case STKAudioPlayerStatePlaying:
+         [self stop];
+         break;
+         
+      case STKAudioPlayerStatePaused:
+         [self play:self.lastUrlString options:self.lastOptions];
+         break;
+         
+      case STKAudioPlayerStateStopped:
+         [self play:self.lastUrlString options:self.lastOptions];
+         break;
+         
+      case STKAudioPlayerStateBuffering:
+         [self stop];
+         break;
+         
+      case STKAudioPlayerStateError:
+         [self stop];
+         break;
+         
+      default:
+         break;
+   }
    return MPRemoteCommandHandlerStatusSuccess;
 }
 
