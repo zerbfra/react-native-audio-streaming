@@ -372,7 +372,7 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
       case AVAudioSessionInterruptionTypeEnded:
          NSLog(@"Audio Session Interruption case ended.");
          self.isPlayingWithOthers = [[AVAudioSession sharedInstance] isOtherAudioPlaying];
-         (self.isPlayingWithOthers) ? [self.audioPlayer stop] : [self.audioPlayer resume];
+         (self.isPlayingWithOthers) ? [self.audioPlayer stop] : [self.audioPlayer play];
          break;
          
       default:
@@ -459,39 +459,6 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
    [commandCenter.playCommand removeTarget:self];
    [commandCenter.pauseCommand removeTarget:self];
 }
-
-/*
-- (void)setNowPlayingInfo:(bool)isPlaying
-{
-   if (self.showNowPlayingInfo) {
-      NSString* appName = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleName"];
-      appName = appName ? appName : @"";
-
-      NSMutableDictionary *nowPlayingInfo = [[NSMutableDictionary alloc] init];
-      
-      NSArray *ta = [self.currentSong componentsSeparatedByString:@" - "];
-      NSString *title = ta[0] ? ta[0] : @"";
-      NSString *artist = ta[1] ? ta[1] : @"";
-      
-      [nowPlayingInfo setObject:@"Titolo" forKey:MPMediaItemPropertyTitle];
-      [nowPlayingInfo setObject:@"Artista" forKey:MPMediaItemPropertyArtist];
-      
-      [nowPlayingInfo setObject:@"Album" forKey:MPMediaItemPropertyAlbumTitle];
-      [nowPlayingInfo setObject:appName forKey:MPMediaItemPropertyTitle];
-      
-      [nowPlayingInfo setObject:[NSNumber numberWithFloat:isPlaying ? 1.0f : 0.0f] forKey:MPNowPlayingInfoPropertyPlaybackRate];
-
-      NSString *imageUrl = @"http://is4.mzstatic.com/image/thumb/Music62/v4/62/2b/b1/622bb1ec-ec55-2a1f-8a64-67d31d7d5328/source/600x600bb.jpg";
-      if(isPlaying) {
-         [self updateControlCenterImage:imageUrl];
-         [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
-      }
-      
-   } else {
-      [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
-   }
-}
-*/
 
 - (void) setNowPlayingInfo:(bool)isPlaying title:(NSString*)trackTitle artist:(NSString*)trackArtist album:(NSString*)trackAlbum artworkUrl:(NSString*)artworkUrl
 {
