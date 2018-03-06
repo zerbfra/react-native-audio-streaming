@@ -372,7 +372,7 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
       case AVAudioSessionInterruptionTypeEnded:
          NSLog(@"Audio Session Interruption case ended.");
          self.isPlayingWithOthers = [[AVAudioSession sharedInstance] isOtherAudioPlaying];
-         (self.isPlayingWithOthers) ? [self.audioPlayer stop] : [self.audioPlayer play];
+         (self.isPlayingWithOthers) ? [self.audioPlayer stop] : [self.audioPlayer play:self.lastUrlString];
          break;
          
       default:
