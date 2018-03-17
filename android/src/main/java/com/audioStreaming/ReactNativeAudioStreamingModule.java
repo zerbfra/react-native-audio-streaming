@@ -102,7 +102,7 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
                   stop();
                   break;
                 case (AudioManager.AUDIOFOCUS_GAIN) :
-                  resume();
+                  if(signal.isPlaying) resume();
                   break;
                 default: break;
               }
