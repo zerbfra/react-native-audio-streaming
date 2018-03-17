@@ -54,6 +54,7 @@ public class Signal extends Service implements OnErrorListener,
     private Context context;
     private String streamingURL;
     public boolean isPlaying = false;
+    public AudioTrack aTrack;
     private boolean isPreparingStarted = false;
     private EventsReceiver eventsReceiver;
     private ReactNativeAudioStreamingModule module;
@@ -276,7 +277,7 @@ public class Signal extends Service implements OnErrorListener,
     public boolean onError(MediaPlayer mp, int what, int extra) {
         switch (what) {
             case MediaPlayer.MEDIA_ERROR_NOT_VALID_FOR_PROGRESSIVE_PLAYBACK:
-                //Log.v("ERROR", "MEDIA ERROR NOT VALID FOR PROGRESSIVE PLAYBACK "	+ extra);
+                //Log.v("ERROR", "MEDIA ERROR NOT VALID FOR PROGRESSIVE PLAYBACK "  + extra);
                 break;
             case MediaPlayer.MEDIA_ERROR_SERVER_DIED:
                 //Log.v("ERROR", "MEDIA ERROR SERVER DIED " + extra);
@@ -339,6 +340,7 @@ public class Signal extends Service implements OnErrorListener,
     @Override
     public void playerAudioTrackCreated(AudioTrack atrack) {
         //  TODO
+        this.aTrack = atrack;
     }
 
     @Override
