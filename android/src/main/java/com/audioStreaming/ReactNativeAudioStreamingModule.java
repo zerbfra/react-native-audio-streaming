@@ -33,6 +33,7 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
   public ReactNativeAudioStreamingModule(ReactApplicationContext reactContext) {
     super(reactContext);
     this.context = reactContext;
+    this.shouldShowNotification = false;
   }
 
   public ReactApplicationContext getReactApplicationContextModule() {
