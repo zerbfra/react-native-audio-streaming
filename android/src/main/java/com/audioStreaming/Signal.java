@@ -154,6 +154,12 @@ public class Signal extends Service implements OnErrorListener,
         sendBroadcast(new Intent(Mode.STOPPED));
     }
 
+    public void interrupt() {
+        if (this.isPlaying) {
+            this.aacPlayer.stop();
+        }
+    }
+
     public NotificationManager getNotifyManager() {
         return notifyManager;
     }
