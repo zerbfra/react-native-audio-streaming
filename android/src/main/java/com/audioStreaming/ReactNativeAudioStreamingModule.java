@@ -92,23 +92,16 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
               switch (focusChange) {
 
                 case (AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) :
-                  // Lower the volume while ducking.
-//                    aacPlayer.setVolume(0.2f, 0.2f);
+                  stop();
                   break;
                 case (AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) :
                   stop();
                   break;
-
                 case (AudioManager.AUDIOFOCUS_LOSS) :
                   stop();
-//                    ComponentName component =new ComponentName(AudioPlayerActivity.this,MediaControlReceiver.class);
-//                    am.unregisterMediaButtonEventReceiver(component);
                   break;
-
                 case (AudioManager.AUDIOFOCUS_GAIN) :
-                  // Return the volume to normal and resume if paused.
-//                    mediaPlayer.setVolume(1f, 1f);
-//                    mediaPlayer.start();
+                  resume();
                   break;
                 default: break;
               }
@@ -118,14 +111,11 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
   @ReactMethod public void play(String streamingURL, ReadableMap options) {
 
     AudioManager am = (AudioManager)context.getSystemService(Context.AUDIO_SERVICE);
-    int amResult = am.requestAudioFocus(focusChangeListener,
-            AudioManager.STREAM_MUSIC,
-            AudioManager.AUDIOFOCUS_GAIN);
+    int amResult = am.requestAudioFocus(focusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
 
     if (amResult == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
       this.streamingURL = streamingURL;
-      this.shouldShowNotification =
-              options.hasKey(SHOULD_SHOW_NOTIFICATION) && options.getBoolean(SHOULD_SHOW_NOTIFICATION);
+      this.shouldShowNotification = options.hasKey(SHOULD_SHOW_NOTIFICATION) && options.getBoolean(SHOULD_SHOW_NOTIFICATION);
       signal.setURLStreaming(streamingURL); // URL of MP3 or AAC stream
       playInternal();
     }
