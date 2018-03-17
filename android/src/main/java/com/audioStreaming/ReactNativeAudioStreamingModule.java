@@ -93,13 +93,13 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
               switch (focusChange) {
 
                 case (AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) :
-                  stop();
+                  interrupt();
                   break;
                 case (AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) :
-                  stop();
+                  interrupt();
                   break;
                 case (AudioManager.AUDIOFOCUS_LOSS) :
-                  stop();
+                  interrupt();
                   break;
                 case (AudioManager.AUDIOFOCUS_GAIN) :
                   if(signal.isPlaying) resume();
