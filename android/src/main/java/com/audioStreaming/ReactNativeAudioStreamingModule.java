@@ -116,7 +116,7 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
 
     if (amResult == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
       this.streamingURL = streamingURL;
-      // this.shouldShowNotification = options.hasKey(SHOULD_SHOW_NOTIFICATION) && options.getBoolean(SHOULD_SHOW_NOTIFICATION);
+      this.shouldShowNotification = options.hasKey(SHOULD_SHOW_NOTIFICATION) && options.getBoolean(SHOULD_SHOW_NOTIFICATION);
       signal.setURLStreaming(streamingURL); // URL of MP3 or AAC stream
       playInternal();
     }
@@ -124,6 +124,9 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
 
   private void playInternal() {
     signal.play();
+    if (shouldShowNotification) {
+      signal.showNotification();
+    }
   }
 
   @ReactMethod public void stop() {
