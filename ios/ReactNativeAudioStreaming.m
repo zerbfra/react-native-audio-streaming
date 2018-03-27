@@ -7,8 +7,6 @@
 
 #import "ReactNativeAudioStreaming.h"
 
-#define LPN_AUDIO_BUFFER_SEC 20 // Can't use this with shoutcast buffer meta data
-
 @import AVFoundation;
 @import MediaPlayer;
 
@@ -17,6 +15,8 @@
 @synthesize bridge = _bridge;
 
 RCT_EXPORT_MODULE()
+
+
 - (dispatch_queue_t)methodQueue
 {
    return dispatch_get_main_queue();
@@ -27,11 +27,9 @@ RCT_EXPORT_MODULE()
    self = [super init];
    if (self) {
       [self setSharedAudioSessionCategory];
-      self.audioPlayer = [[STKAudioPlayer alloc] initWithOptions:(STKAudioPlayerOptions){ .flushQueueOnSeek = YES }];
-      [self.audioPlayer setDelegate:self];
+
       self.lastUrlString = @"";
-       self.lastOptions = [NSDictionary dictionary];
-      [NSTimer scheduledTimerWithTimeInterval:0.5 target:self selector:@selector(tick:) userInfo:nil repeats:YES];
+      self.lastOptions = [NSDictionary dictionary];
       
       NSLog(@"AudioPlayer initialized");
    }
@@ -40,32 +38,10 @@ RCT_EXPORT_MODULE()
 }
 
 
--(void) tick:(NSTimer*)timer
-{
-   if (!self.audioPlayer) {
-      return;
-   }
-   
-   if (self.audioPlayer.currentlyPlayingQueueItemId != nil && self.audioPlayer.state == STKAudioPlayerStatePlaying) {
-      NSNumber *progress = [NSNumber numberWithFloat:self.audioPlayer.progress];
-      NSNumber *duration = [NSNumber numberWithFloat:self.audioPlayer.duration];
-      NSString *url = [NSString stringWithString:self.audioPlayer.currentlyPlayingQueueItemId];
-      
-      [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{
-                                                                                 @"status": @"STREAMING",
-                                                                                 @"progress": progress,
-                                                                                 @"duration": duration,
-                                                                                 @"url": url,
-                                                                                 }];
-   }
-}
-
-
 - (void)dealloc
 {
    [self unregisterAudioInterruptionNotifications];
    [self unregisterRemoteControlEvents];
-   [self.audioPlayer setDelegate:nil];
 }
 
 
@@ -73,17 +49,34 @@ RCT_EXPORT_MODULE()
 
 RCT_EXPORT_METHOD(play:(NSString *) streamUrl options:(NSDictionary *)options)
 {
-   if (!self.audioPlayer) {
-      return;
-   }
-
+   [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{@"status": @"BUFFERING"}];
    [self activate];
    
-   if (self.audioPlayer.state == STKAudioPlayerStatePaused && [self.lastUrlString isEqualToString:streamUrl]) {
-      [self.audioPlayer resume];
-   } else {
-      [self.audioPlayer play:streamUrl];
+   if(self.audioPlayer) {
+      // remove the observer if the songplayer is allocated - to use pause don't re-instance the player
+      [self.audioPlayer removeObserver:self forKeyPath:@"status"];
    }
+
+   if(self.playerItem) {
+      [self.playerItem removeObserver:self forKeyPath:@"timedMetadata"];
+   }
+   
+   NSURL *streamingUrl = [NSURL URLWithString:streamUrl];
+   AVAsset *asset = [AVAsset assetWithURL:streamingUrl];
+   NSArray *assetKeys = @[@"playable", @"hasProtectedContent"];
+   
+   // Create a new AVPlayerItem with the asset and an
+   // array of asset keys to be automatically loaded
+   self.playerItem = [AVPlayerItem playerItemWithAsset:asset automaticallyLoadedAssetKeys:assetKeys];
+   
+   
+   // Associate the player item with the player
+   self.audioPlayer = [AVPlayer playerWithPlayerItem:self.playerItem];
+
+   [self.audioPlayer addObserver:self forKeyPath:@"status" options:0 context:nil];
+   [self.playerItem addObserver:self forKeyPath:@"timedMetadata" options:NSKeyValueObservingOptionNew context:nil];
+   
+   
 
    self.lastUrlString = streamUrl;
    self.lastOptions = options;
@@ -105,12 +98,49 @@ RCT_EXPORT_METHOD(play:(NSString *) streamUrl options:(NSDictionary *)options)
    // [self setNowPlayingInfo:true];
 }
 
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
+   NSLog(@"keypath: %@", keyPath);
+   if (object == self.audioPlayer && [keyPath isEqualToString:@"status"]) {
+      if (self.audioPlayer.status == AVPlayerStatusFailed) {
+         NSLog(@"AVPlayer Failed");
+         [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{@"status": @"ERROR"}];
+         
+      } else if (self.audioPlayer.status == AVPlayerStatusReadyToPlay) {
+         NSLog(@"AVPlayerStatusReadyToPlay");
+         [self.audioPlayer play];
+         
+         [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{ @"status": @"STREAMING" }];
+         
+      } else if (self.audioPlayer.status == AVPlayerItemStatusUnknown) {
+         NSLog(@"AVPlayer Unknown");
+         [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{@"status": @"UNKNOWN"}];
+         
+      }
+   }
+   
+   if (object == self.playerItem && [keyPath isEqualToString:@"timedMetadata"]) {
+
+      
+      AVPlayerItem* playerItem = object;
+      
+      for (AVMetadataItem* metadata in playerItem.timedMetadata) {
+         if([metadata.commonKey isEqualToString:@"title"]){
+            NSLog(@"%@",metadata.stringValue);
+            
+            [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{
+                                                                                            @"status": @"METADATA_UPDATED",
+                                                                                            @"key": @"StreamTitle",
+                                                                                            @"value": metadata.stringValue
+                                                                                            }];
+         }
+      }
+   }
+
+}
+
 RCT_EXPORT_METHOD(updateTrackInfo:(NSDictionary *)options)
 {
 
-   if (!self.audioPlayer) {
-      return;
-   }
 
    // set title, artist, album and artwork url if set
    NSString *trackTitle = @"";
@@ -128,166 +158,28 @@ RCT_EXPORT_METHOD(updateTrackInfo:(NSDictionary *)options)
 
 }
 
-RCT_EXPORT_METHOD(seekToTime:(double) seconds)
-{
-   if (!self.audioPlayer) {
-      return;
-   }
-
-   [self.audioPlayer seekToTime:seconds];
-}
-
-RCT_EXPORT_METHOD(goForward:(double) seconds)
-{
-   if (!self.audioPlayer) {
-      return;
-   }
-   
-   double newtime = self.audioPlayer.progress + seconds;
-   
-   if (self.audioPlayer.duration < newtime) {
-      [self.audioPlayer stop];
-      // [self setNowPlayingInfo:false];
-   } else {
-      [self.audioPlayer seekToTime:newtime];
-   }
-}
-
-RCT_EXPORT_METHOD(goBack:(double) seconds)
-{
-   if (!self.audioPlayer) {
-      return;
-   }
-   
-   double newtime = self.audioPlayer.progress - seconds;
-   
-   if (newtime < 0) {
-      [self.audioPlayer seekToTime:0.0];
-   } else {
-      [self.audioPlayer seekToTime:newtime];
-   }
-}
-
-RCT_EXPORT_METHOD(pause)
-{
-   if (!self.audioPlayer) {
-      return;
-   } else {
-      [self.audioPlayer pause];
-      // [self setNowPlayingInfo:false];
-      [self deactivate];
-   }
-}
-
-RCT_EXPORT_METHOD(resume)
-{
-   if (!self.audioPlayer) {
-      return;
-   } else {
-      [self activate];
-      [self.audioPlayer resume];
-      // [self setNowPlayingInfo:true];
-   }
-}
 
 RCT_EXPORT_METHOD(stop)
 {
    if (!self.audioPlayer) {
       return;
    } else {
-      [self.audioPlayer stop];
-      // [self setNowPlayingInfo:false];
+      // [player removeObserver:self forKeyPath:@"status"];
+      [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{ @"status": @"STOPPED" }];
+      [self.audioPlayer pause];
       [self deactivate];
    }
 }
 
 RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
 {
+   callback(@[[NSNull null], @{@"status": [self getCurrentStatus], @"url": self.lastUrlString}]);
+}
+
+- (NSString*) getCurrentStatus {
    NSString *status = @"STOPPED";
-   NSNumber *duration = [NSNumber numberWithFloat:self.audioPlayer.duration];
-   NSNumber *progress = [NSNumber numberWithFloat:self.audioPlayer.progress];
-
-   if (!self.audioPlayer) {
-      status = @"ERROR";
-   } else if ([self.audioPlayer state] == STKAudioPlayerStatePlaying) {
-      status = @"PLAYING";
-   } else if ([self.audioPlayer state] == STKAudioPlayerStatePaused) {
-      status = @"PAUSED";
-   } else if ([self.audioPlayer state] == STKAudioPlayerStateBuffering) {
-      status = @"BUFFERING";
-   }
-   
-   callback(@[[NSNull null], @{@"status": status, @"progress": progress, @"duration": duration, @"url": self.lastUrlString}]);
-}
-
-#pragma mark - StreamingKit Audio Player
-
-
-- (void)audioPlayer:(STKAudioPlayer *)player didStartPlayingQueueItemId:(NSObject *)queueItemId
-{
-   NSLog(@"AudioPlayer is playing");
-}
-
-- (void)audioPlayer:(STKAudioPlayer *)player didFinishPlayingQueueItemId:(NSObject *)queueItemId withReason:(STKAudioPlayerStopReason)stopReason andProgress:(double)progress andDuration:(double)duration
-{
-   NSLog(@"AudioPlayer has stopped");
-}
-
-- (void)audioPlayer:(STKAudioPlayer *)player didFinishBufferingSourceWithQueueItemId:(NSObject *)queueItemId
-{
-   NSLog(@"AudioPlayer finished buffering");
-}
-
-- (void)audioPlayer:(STKAudioPlayer *)player unexpectedError:(STKAudioPlayerErrorCode)errorCode {
-   NSLog(@"AudioPlayer unexpected Error with code %d", errorCode);
-}
-
-- (void)audioPlayer:(STKAudioPlayer *)audioPlayer didReadStreamMetadata:(NSDictionary *)dictionary {
-   NSLog(@"AudioPlayer SONG NAME  %@", dictionary[@"StreamTitle"]);
-   
-   self.currentSong = dictionary[@"StreamTitle"] ? dictionary[@"StreamTitle"] : @"";
-   [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{
-                                                                                   @"status": @"METADATA_UPDATED",
-                                                                                   @"key": @"StreamTitle",
-                                                                                   @"value": self.currentSong
-                                                                                   }];
-   // [self setNowPlayingInfo:true];
-}
-
-- (void)audioPlayer:(STKAudioPlayer *)player stateChanged:(STKAudioPlayerState)state previousState:(STKAudioPlayerState)previousState
-{
-   NSNumber *duration = [NSNumber numberWithFloat:self.audioPlayer.duration];
-   NSNumber *progress = [NSNumber numberWithFloat:self.audioPlayer.progress];
-   
-   switch (state) {
-      case STKAudioPlayerStatePlaying:
-         [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent"
-                                                         body:@{@"status": @"PLAYING", @"progress": progress, @"duration": duration, @"url": self.lastUrlString}];
-         break;
-         
-      case STKAudioPlayerStatePaused:
-         [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent"
-                                                         body:@{@"status": @"PAUSED", @"progress": progress, @"duration": duration, @"url": self.lastUrlString}];
-         break;
-         
-      case STKAudioPlayerStateStopped:
-         [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent"
-                                                         body:@{@"status": @"STOPPED", @"progress": progress, @"duration": duration, @"url": self.lastUrlString}];
-         break;
-         
-      case STKAudioPlayerStateBuffering:
-         [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent"
-                                                         body:@{@"status": @"BUFFERING"}];
-         break;
-         
-      case STKAudioPlayerStateError:
-         [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent"
-                                                         body:@{@"status": @"ERROR"}];
-         break;
-         
-      default:
-         break;
-   }
+   if(self.audioPlayer && self.audioPlayer.rate != 0 && self.audioPlayer.error == nil) status = @"PLAYING";
+   return status;
 }
 
 
@@ -366,13 +258,13 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
    {
       case AVAudioSessionInterruptionTypeBegan:
          NSLog(@"Audio Session Interruption case started.");
-         [self.audioPlayer stop];
+         [self stop];
          break;
          
       case AVAudioSessionInterruptionTypeEnded:
          NSLog(@"Audio Session Interruption case ended.");
          self.isPlayingWithOthers = [[AVAudioSession sharedInstance] isOtherAudioPlaying];
-         (self.isPlayingWithOthers) ? [self.audioPlayer stop] : [self.audioPlayer play:self.lastUrlString];
+         (self.isPlayingWithOthers) ? [self stop] :  [self play:self.lastUrlString options:self.lastOptions];
          break;
          
       default:
@@ -400,7 +292,7 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
          
       case AVAudioSessionRouteChangeReasonOldDeviceUnavailable:
          // The previous audio output path is no longer available.
-         [self.audioPlayer stop];
+         [self stop];
          break;
          
       case AVAudioSessionRouteChangeReasonCategoryChange:
@@ -457,30 +349,8 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
 - (MPRemoteCommandHandlerStatus)didReceiveToggleCommand:(MPRemoteCommand *)event
 {
    NSLog(@"didReceiveToggleCommand");
-   switch ([self.audioPlayer state]) {
-      case STKAudioPlayerStatePlaying:
-         [self stop];
-         break;
-         
-      case STKAudioPlayerStatePaused:
-         [self play:self.lastUrlString options:self.lastOptions];
-         break;
-         
-      case STKAudioPlayerStateStopped:
-         [self play:self.lastUrlString options:self.lastOptions];
-         break;
-         
-      case STKAudioPlayerStateBuffering:
-         [self stop];
-         break;
-         
-      case STKAudioPlayerStateError:
-         [self stop];
-         break;
-         
-      default:
-         break;
-   }
+   if ([[self getCurrentStatus] isEqualToString:@"STOPPED"]) [self play:self.lastUrlString options:self.lastOptions];
+   else [self stop];
    return MPRemoteCommandHandlerStatusSuccess;
 }
 
@@ -493,7 +363,9 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
 
 - (void) setNowPlayingInfo:(bool)isPlaying title:(NSString*)trackTitle artist:(NSString*)trackArtist album:(NSString*)trackAlbum artworkUrl:(NSString*)artworkUrl
 {
+  
    if (self.showNowPlayingInfo) {
+ 
       NSString* appName = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleDisplayName"];
       appName = appName ? appName : @"";
       
@@ -509,11 +381,13 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
       [nowPlayingInfo setObject:[NSNumber numberWithFloat:isPlaying ? 1.0f : 0.0f] forKey:MPNowPlayingInfoPropertyPlaybackRate];
    
       if(isPlaying) {
+    
          [self updateControlCenterImage:artworkUrl];
          [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
       }
       
    } else {
+
       [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
    }
    

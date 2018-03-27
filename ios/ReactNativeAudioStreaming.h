@@ -6,11 +6,15 @@
 #else
 #import "RCTBridgeModule.h"
 #endif
-#import "STKAudioPlayer.h"
 
-@interface ReactNativeAudioStreaming : NSObject <RCTBridgeModule, STKAudioPlayerDelegate>
+//TODO: use new events https://facebook.github.io/react-native/docs/native-modules-ios.html#sending-events-to-javascript
 
-@property (nonatomic, strong) STKAudioPlayer *audioPlayer;
+@import AVFoundation;
+
+@interface ReactNativeAudioStreaming : NSObject <RCTBridgeModule>
+
+@property (nonatomic, strong) AVPlayer* audioPlayer;
+@property (nonatomic, strong) AVPlayerItem* playerItem;
 @property (nonatomic, readwrite) BOOL isPlayingWithOthers;
 @property (nonatomic, readwrite) BOOL showNowPlayingInfo;
 @property (nonatomic, readwrite) NSString *lastUrlString;
@@ -18,6 +22,6 @@
 @property (nonatomic, retain) NSString *currentSong;
 
 - (void)play:(NSString *) streamUrl options:(NSDictionary *)options;
-- (void)pause;
+- (void)stop;
 
 @end
