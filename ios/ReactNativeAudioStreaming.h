@@ -21,7 +21,4 @@
 @property (nonatomic, readwrite) NSDictionary *lastOptions;
 @property (nonatomic, retain) NSString *currentSong;
 
-- (void)play:(NSString *) streamUrl options:(NSDictionary *)options;
-- (void)stop;
-
 @end

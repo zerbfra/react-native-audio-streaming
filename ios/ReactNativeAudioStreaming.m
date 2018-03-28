@@ -26,11 +26,8 @@ RCT_EXPORT_MODULE()
 {
    self = [super init];
    if (self) {
-      [self setSharedAudioSessionCategory];
-
       self.lastUrlString = @"";
       self.lastOptions = [NSDictionary dictionary];
-      
       NSLog(@"AudioPlayer initialized");
    }
    
@@ -94,49 +91,8 @@ RCT_EXPORT_METHOD(play:(NSString *) streamUrl options:(NSDictionary *)options)
       [self registerAudioInterruptionNotifications];
       [self registerRemoteControlEvents];
    }
-   
-   // [self setNowPlayingInfo:true];
 }
 
-- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
-   NSLog(@"keypath: %@", keyPath);
-   if (object == self.audioPlayer && [keyPath isEqualToString:@"status"]) {
-      if (self.audioPlayer.status == AVPlayerStatusFailed) {
-         NSLog(@"AVPlayer Failed");
-         [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{@"status": @"ERROR"}];
-         
-      } else if (self.audioPlayer.status == AVPlayerStatusReadyToPlay) {
-         NSLog(@"AVPlayerStatusReadyToPlay");
-         [self.audioPlayer play];
-         
-         [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{ @"status": @"STREAMING" }];
-         
-      } else if (self.audioPlayer.status == AVPlayerItemStatusUnknown) {
-         NSLog(@"AVPlayer Unknown");
-         [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{@"status": @"UNKNOWN"}];
-         
-      }
-   }
-   
-   if (object == self.playerItem && [keyPath isEqualToString:@"timedMetadata"]) {
-
-      
-      AVPlayerItem* playerItem = object;
-      
-      for (AVMetadataItem* metadata in playerItem.timedMetadata) {
-         if([metadata.commonKey isEqualToString:@"title"]){
-            NSLog(@"%@",metadata.stringValue);
-            
-            [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{
-                                                                                            @"status": @"METADATA_UPDATED",
-                                                                                            @"key": @"StreamTitle",
-                                                                                            @"value": metadata.stringValue
-                                                                                            }];
-         }
-      }
-   }
-
-}
 
 RCT_EXPORT_METHOD(updateTrackInfo:(NSDictionary *)options)
 {
@@ -176,17 +132,55 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
    callback(@[[NSNull null], @{@"status": [self getCurrentStatus], @"url": self.lastUrlString}]);
 }
 
+#pragma mark - Utilities
+
 - (NSString*) getCurrentStatus {
    NSString *status = @"STOPPED";
    if(self.audioPlayer && self.audioPlayer.rate != 0 && self.audioPlayer.error == nil) status = @"PLAYING";
    return status;
 }
 
+#pragma mark - AVPlayer Observers
+
+- (void) observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
+
+   if (object == self.audioPlayer && [keyPath isEqualToString:@"status"]) {
+      if (self.audioPlayer.status == AVPlayerStatusFailed) {
+         NSLog(@"AVPlayer Failed");
+         [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{@"status": @"ERROR"}];
+         
+      } else if (self.audioPlayer.status == AVPlayerStatusReadyToPlay) {
+         NSLog(@"AVPlayerStatusReadyToPlay");
+         [self.audioPlayer play];
+         
+         [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{ @"status": @"STREAMING" }];
+         
+      } else if (self.audioPlayer.status == AVPlayerItemStatusUnknown) {
+         NSLog(@"AVPlayer Unknown");
+         [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{@"status": @"UNKNOWN"}];
+         
+      }
+   }
+   
+   if (object == self.playerItem && [keyPath isEqualToString:@"timedMetadata"]) {
+      AVPlayerItem* playerItem = object;
+      
+      for (AVMetadataItem* metadata in playerItem.timedMetadata) {
+         if([metadata.commonKey isEqualToString:@"title"]){
+            [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{
+                                                                                            @"status": @"METADATA_UPDATED",
+                                                                                            @"key": @"StreamTitle",
+                                                                                            @"value": metadata.stringValue
+                                                                                            }];
+         }
+      }
+   }
+   
+}
 
 #pragma mark - Audio Session
 
-- (void)activate
-{
+- (void) activate {
    NSError *categoryError = nil;
    
    [[AVAudioSession sharedInstance] setActive:YES error:&categoryError];
@@ -197,8 +191,7 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
    }
 }
 
-- (void)deactivate
-{
+- (void) deactivate {
    NSError *categoryError = nil;
    
    [[AVAudioSession sharedInstance] setActive:NO error:&categoryError];
@@ -208,18 +201,7 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
    }
 }
 
-- (void)setSharedAudioSessionCategory
-{
-   NSError *categoryError = nil;
-   self.isPlayingWithOthers = [[AVAudioSession sharedInstance] isOtherAudioPlaying];
-
-   [[AVAudioSession sharedInstance] setActive:NO error:&categoryError];
-   [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryAmbient error:&categoryError];
-   
-   if (categoryError) {
-      NSLog(@"Error setting category! %@", [categoryError description]);
-   }
-}
+#pragma mark - Audio Interruption notifications
 
 - (void)registerAudioInterruptionNotifications
 {
@@ -360,6 +342,8 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
    [commandCenter.playCommand removeTarget:self];
    [commandCenter.pauseCommand removeTarget:self];
 }
+
+#pragma mark - Control Center Now playing infos
 
 - (void) setNowPlayingInfo:(bool)isPlaying title:(NSString*)trackTitle artist:(NSString*)trackArtist album:(NSString*)trackAlbum artworkUrl:(NSString*)artworkUrl
 {
