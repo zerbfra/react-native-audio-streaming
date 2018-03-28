@@ -44,18 +44,23 @@ RCT_EXPORT_MODULE()
 
 #pragma mark - Pubic API
 
-RCT_EXPORT_METHOD(play:(NSString *) streamUrl options:(NSDictionary *)options)
-{
-   [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{@"status": @"BUFFERING"}];
-   [self activate];
+RCT_EXPORT_METHOD(play:(NSString *) streamUrl options:(NSDictionary *)options) {
    
-   if(self.audioPlayer) {
-      // remove the observer if the songplayer is allocated - to use pause don't re-instance the player
-      [self.audioPlayer removeObserver:self forKeyPath:@"status"];
-   }
-
-   if(self.playerItem) {
-      [self.playerItem removeObserver:self forKeyPath:@"timedMetadata"];
+   if(![self activate]) return;
+   
+   @try {
+      if(self.audioPlayer) {
+         // remove the observer if the songplayer is allocated - to use pause don't re-instance the player
+         [self.audioPlayer removeObserver:self forKeyPath:@"status"];
+         [self.audioPlayer removeObserver:self forKeyPath:@"rate"];
+      }
+      
+      if(self.playerItem) {
+         [self.playerItem removeObserver:self forKeyPath:@"timedMetadata"];
+         [self.playerItem removeObserver:self forKeyPath:@"loadedTimeRanges"];
+      }
+   } @catch (id Exception){
+      NSLog(@"Some observers where already removed");
    }
    
    NSURL *streamingUrl = [NSURL URLWithString:streamUrl];
@@ -66,22 +71,21 @@ RCT_EXPORT_METHOD(play:(NSString *) streamUrl options:(NSDictionary *)options)
    // array of asset keys to be automatically loaded
    self.playerItem = [AVPlayerItem playerItemWithAsset:asset automaticallyLoadedAssetKeys:assetKeys];
    
-   
-   // Associate the player item with the player
+   // Associate the player item with the player + emit buffering event
+   [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{@"status": @"BUFFERING"}];
    self.audioPlayer = [AVPlayer playerWithPlayerItem:self.playerItem];
-
+   
+   // set observers
    [self.audioPlayer addObserver:self forKeyPath:@"status" options:0 context:nil];
+   [self.audioPlayer addObserver:self forKeyPath:@"rate" options:0 context:nil];
+   
    [self.playerItem addObserver:self forKeyPath:@"timedMetadata" options:NSKeyValueObservingOptionNew context:nil];
+   [self.playerItem addObserver:self forKeyPath:@"loadedTimeRanges" options:NSKeyValueObservingOptionNew context:nil];
    
    
-
    self.lastUrlString = streamUrl;
    self.lastOptions = options;
-   self.showNowPlayingInfo = false;
-   
-   if ([options objectForKey:@"showIniOSMediaCenter"]) {
-      self.showNowPlayingInfo = [[options objectForKey:@"showIniOSMediaCenter"] boolValue];
-   }
+   self.showNowPlayingInfo = [options objectForKey:@"showIniOSMediaCenter"] ? [[options objectForKey:@"showIniOSMediaCenter"] boolValue] : false;
    
    if (self.showNowPlayingInfo) {
       //unregister any existing registrations
@@ -94,10 +98,7 @@ RCT_EXPORT_METHOD(play:(NSString *) streamUrl options:(NSDictionary *)options)
 }
 
 
-RCT_EXPORT_METHOD(updateTrackInfo:(NSDictionary *)options)
-{
-
-
+RCT_EXPORT_METHOD(updateTrackInfo:(NSDictionary *)options) {
    // set title, artist, album and artwork url if set
    NSString *trackTitle = @"";
    NSString *trackArtist = @"";
@@ -109,26 +110,19 @@ RCT_EXPORT_METHOD(updateTrackInfo:(NSDictionary *)options)
    if ([options objectForKey:@"trackArtist"]) trackArtist = [options objectForKey:@"trackArtist"];
    if ([options objectForKey:@"trackAlbum"]) trackAlbum = [options objectForKey:@"trackAlbum"];
    if ([options objectForKey:@"artworkUrl"]) artworkUrl = [options objectForKey:@"artworkUrl"];
-
+   
    [self setNowPlayingInfo:isPlaying title:trackTitle artist:trackArtist album:trackAlbum artworkUrl:artworkUrl];
-
 }
 
 
-RCT_EXPORT_METHOD(stop)
-{
-   if (!self.audioPlayer) {
-      return;
-   } else {
-      // [player removeObserver:self forKeyPath:@"status"];
-      [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{ @"status": @"STOPPED" }];
+RCT_EXPORT_METHOD(stop) {
+   if (self.audioPlayer) {
       [self.audioPlayer pause];
       [self deactivate];
    }
 }
 
-RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
-{
+RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback) {
    callback(@[[NSNull null], @{@"status": [self getCurrentStatus], @"url": self.lastUrlString}]);
 }
 
@@ -143,23 +137,30 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
 #pragma mark - AVPlayer Observers
 
 - (void) observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
-
+   
    if (object == self.audioPlayer && [keyPath isEqualToString:@"status"]) {
       if (self.audioPlayer.status == AVPlayerStatusFailed) {
          NSLog(@"AVPlayer Failed");
          [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{@"status": @"ERROR"}];
-         
-      } else if (self.audioPlayer.status == AVPlayerStatusReadyToPlay) {
+      }
+      if (self.audioPlayer.status == AVPlayerStatusReadyToPlay) {
          NSLog(@"AVPlayerStatusReadyToPlay");
          [self.audioPlayer play];
-         
-         [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{ @"status": @"STREAMING" }];
-         
-      } else if (self.audioPlayer.status == AVPlayerItemStatusUnknown) {
+      }
+      if (self.audioPlayer.status == AVPlayerItemStatusUnknown) {
          NSLog(@"AVPlayer Unknown");
          [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{@"status": @"UNKNOWN"}];
-         
       }
+   }
+   
+   if (object == self.audioPlayer && [keyPath isEqualToString:@"rate"]) {
+      if (![self.audioPlayer rate]) [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{ @"status": @"STOPPED" }];
+   }
+   
+   if (object == self.playerItem && [keyPath isEqualToString:@"loadedTimeRanges"]) {
+      NSLog(@"Ready and playing");
+      [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{ @"status": @"STREAMING" }];
+      [self.playerItem removeObserver:self forKeyPath:@"loadedTimeRanges"];
    }
    
    if (object == self.playerItem && [keyPath isEqualToString:@"timedMetadata"]) {
@@ -180,25 +181,21 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
 
 #pragma mark - Audio Session
 
-- (void) activate {
+- (Boolean) activate {
    NSError *categoryError = nil;
-   
    [[AVAudioSession sharedInstance] setActive:YES error:&categoryError];
    [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayback error:&categoryError];
    
-   if (categoryError) {
-      NSLog(@"Error setting category! %@", [categoryError description]);
-   }
+   if (categoryError) return false;
+   return true;
 }
 
-- (void) deactivate {
+- (Boolean) deactivate {
    NSError *categoryError = nil;
-   
    [[AVAudioSession sharedInstance] setActive:NO error:&categoryError];
    
-   if (categoryError) {
-      NSLog(@"Error setting category! %@", [categoryError description]);
-   }
+   if (categoryError) return false;
+   return true;
 }
 
 #pragma mark - Audio Interruption notifications
@@ -227,14 +224,11 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
                                                  object:nil];
 }
 
-- (void)onAudioInterruption:(NSNotification *)notification
-{
-   // Get the user info dictionary
-   NSDictionary *interruptionDict = notification.userInfo;
+- (void)onAudioInterruption:(NSNotification *)notification {
    
-   // Get the AVAudioSessionInterruptionTypeKey enum from the dictionary
-   NSInteger interuptionType = [[interruptionDict valueForKey:AVAudioSessionInterruptionTypeKey] integerValue];
-   
+   // Get the AVAudioSessionInterruptionTypeKey enum
+   NSInteger interuptionType = [[notification.userInfo valueForKey:AVAudioSessionInterruptionTypeKey] integerValue];
+   self.isPlayingWithOthers = [[AVAudioSession sharedInstance] isOtherAudioPlaying];
    // Decide what to do based on interruption type
    switch (interuptionType)
    {
@@ -245,8 +239,7 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
          
       case AVAudioSessionInterruptionTypeEnded:
          NSLog(@"Audio Session Interruption case ended.");
-         self.isPlayingWithOthers = [[AVAudioSession sharedInstance] isOtherAudioPlaying];
-         (self.isPlayingWithOthers) ? [self stop] :  [self play:self.lastUrlString options:self.lastOptions];
+         [self play:self.lastUrlString options:self.lastOptions];
          break;
          
       default:
@@ -347,31 +340,31 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
 
 - (void) setNowPlayingInfo:(bool)isPlaying title:(NSString*)trackTitle artist:(NSString*)trackArtist album:(NSString*)trackAlbum artworkUrl:(NSString*)artworkUrl
 {
-  
+   
    if (self.showNowPlayingInfo) {
- 
+      
       NSString* appName = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleDisplayName"];
       appName = appName ? appName : @"";
       
       NSMutableDictionary *nowPlayingInfo = [[NSMutableDictionary alloc] init];
-
+      
       [nowPlayingInfo setObject:trackTitle forKey:MPMediaItemPropertyTitle];
       [nowPlayingInfo setObject:trackArtist forKey:MPMediaItemPropertyArtist];
       
       if([trackAlbum isEqualToString:@""]) [nowPlayingInfo setObject:appName forKey:MPMediaItemPropertyAlbumTitle];
       else [nowPlayingInfo setObject:trackAlbum forKey:MPMediaItemPropertyAlbumTitle];
-
+      
       
       [nowPlayingInfo setObject:[NSNumber numberWithFloat:isPlaying ? 1.0f : 0.0f] forKey:MPNowPlayingInfoPropertyPlaybackRate];
-   
+      
       if(isPlaying) {
-    
+         
          [self updateControlCenterImage:artworkUrl];
          [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
       }
       
    } else {
-
+      
       [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
    }
    
@@ -396,7 +389,7 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback)
          [editNowPlayingInfo setObject:albumArt forKey:MPMediaItemPropertyArtwork];
          infoCenter.nowPlayingInfo = editNowPlayingInfo;
       } else infoCenter.nowPlayingInfo = nowPlayingInfo;
-
+      
    });
 }
 
