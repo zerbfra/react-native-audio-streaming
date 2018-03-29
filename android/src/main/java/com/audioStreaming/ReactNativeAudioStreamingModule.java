@@ -44,7 +44,7 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule 
   }
 
   public ReactNativeAudioStreamingModule(ReactApplicationContext reactContext) {
-    
+
     super(reactContext);
     this.context = reactContext;
     this.shouldShowNotification = false;
@@ -71,6 +71,7 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule 
 
 
   public void sendEvent(ReactContext reactContext, String eventName, @Nullable WritableMap params) {
+    
     this.context.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
     .emit(eventName, params);
   }
@@ -116,11 +117,12 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule 
 
   @ReactMethod 
   public void play(String streamingURL, ReadableMap options) {
-
+    Log.v("PLAY");
     AudioManager am = (AudioManager)context.getSystemService(Context.AUDIO_SERVICE);
     int amResult = am.requestAudioFocus(focusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
 
     if (amResult == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+      Log.v("GRANTED");
       this.streamingURL = streamingURL;
       this.shouldShowNotification = options.hasKey(SHOULD_SHOW_NOTIFICATION) && options.getBoolean(SHOULD_SHOW_NOTIFICATION);
 
@@ -129,6 +131,7 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule 
       } else {
         if (!mediaPlayer.isPlaying())
           mediaPlayer.start();
+          Log.v("START ");
       }
 
     }
@@ -173,6 +176,7 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule 
     @Override
     protected Boolean doInBackground(String... strings) {
       Boolean prepared = false;
+      Log.v("DO IN BACKGROUND");
 
       try {
         mediaPlayer.setDataSource(strings[0]);
@@ -200,6 +204,7 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule 
 
     @Override
     protected void onPostExecute(Boolean aBoolean) {
+      Log.v("ON POST ");
       super.onPostExecute(aBoolean);
 
       mediaPlayer.start();
@@ -209,7 +214,7 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule 
     @Override
     protected void onPreExecute() {
       super.onPreExecute();
-
+      Log.v("ON PRE - BUFFERING");
       // buffering
     }
   }
