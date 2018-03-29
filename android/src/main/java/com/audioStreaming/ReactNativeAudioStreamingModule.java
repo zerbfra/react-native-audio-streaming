@@ -71,7 +71,7 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule 
 
 
   public void sendEvent(ReactContext reactContext, String eventName, @Nullable WritableMap params) {
-    
+
     this.context.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
     .emit(eventName, params);
   }
@@ -89,26 +89,22 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule 
   }
 
 
-  private AudioManager.OnAudioFocusChangeListener focusChangeListener =
-  new AudioManager.OnAudioFocusChangeListener() {
+  private AudioManager.OnAudioFocusChangeListener focusChangeListener = new AudioManager.OnAudioFocusChangeListener() {
     public void onAudioFocusChange(int focusChange) {
       AudioManager am =(AudioManager)context.getSystemService(Context.AUDIO_SERVICE);
       switch (focusChange) {
 
         case (AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) :
-                  // stopOncall();
-        //signal.aTrack.setVolume(0.2f);
+        this.mediaPlayer.setVolume(0.2f);
         break;
         case (AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) :
-                  //stopOncall();
-        //signal.aTrack.setVolume(0.0f);
+        this.mediaPlayer.setVolume(0.0f);
         break;
         case (AudioManager.AUDIOFOCUS_LOSS) :
-                  // stopOncall();
-        //signal.aTrack.setVolume(0.0f);
+        this.mediaPlayer.setVolume(0.0f);
         break;
         case (AudioManager.AUDIOFOCUS_GAIN) :
-        //signal.aTrack.setVolume(1.0f);
+        this.mediaPlayer.setVolume(1.0f);
         break;
         default: break;
       }
