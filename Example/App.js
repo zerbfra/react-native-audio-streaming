@@ -18,11 +18,11 @@ export default class App extends Component {
         this.urls = [
             {
                 name: 'Shoutcast stream',
-                url: 'http://lacavewebradio.chickenkiller.com:8000/stream.mp3'
+                url: 'http://icecast.unitedradio.it/Radio105.mp3'
             },
             {
                 name: 'M4A stream',
-                url: 'http://web.ist.utl.pt/antonio.afonso/www.aadsm.net/libraries/id3/music/02_Viandanze.m4a'
+                url: 'https://stream.radio.co/s91647c554/listen'
             },
             {
                 name: 'MP3 stream with ID3 meta data',
