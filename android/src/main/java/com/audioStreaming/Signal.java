@@ -188,7 +188,8 @@ public class Signal extends Service implements OnErrorListener,
         remoteViews.setOnClickPendingIntent(R.id.btn_streaming_notification_play, makePendingIntent(BROADCAST_PLAYBACK_PLAY));
         remoteViews.setOnClickPendingIntent(R.id.btn_streaming_notification_stop, makePendingIntent(BROADCAST_EXIT));
         notifyManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        notifyManager.notify(NOTIFY_ME_ID, notifyBuilder.build());
+        // notifyManager.notify(NOTIFY_ME_ID, notifyBuilder.build());
+        startForeground(NOTIFY_ME_ID, notifyBuilder.build());
     }
 
     private PendingIntent makePendingIntent(String broadcast) {
@@ -198,11 +199,13 @@ public class Signal extends Service implements OnErrorListener,
 
     public void clearNotification() {
         if (notifyManager != null)
-            notifyManager.cancel(NOTIFY_ME_ID);
+            // notifyManager.cancel(NOTIFY_ME_ID);
+            stopForeground(true);
     }
 
     public void exitNotification() {
-        notifyManager.cancelAll();
+        // notifyManager.cancelAll();
+        stopForeground(true);
         clearNotification();
         notifyBuilder = null;
         notifyManager = null;
@@ -333,7 +336,8 @@ public class Signal extends Service implements OnErrorListener,
         if (key != null && key.equals("StreamTitle") && remoteViews != null) {
             remoteViews.setTextViewText(R.id.song_name_notification, value);
             notifyBuilder.setContent(remoteViews);
-            notifyManager.notify(NOTIFY_ME_ID, notifyBuilder.build());
+            // notifyManager.notify(NOTIFY_ME_ID, notifyBuilder.build());
+            startForeground(NOTIFY_ME_ID, notifyBuilder.build());
         }
     }
 
