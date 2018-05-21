@@ -23,7 +23,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		1366EF862078CB7C0088CAB0 /* libReactNativeAudioStreaming.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; name = libReactNativeAudioStreaming.a; path = "/Users/francesco/Sviluppo/react-native-audio-streaming/ios/build/Debug-iphoneos/libReactNativeAudioStreaming.a"; sourceTree = "<absolute>"; };
+		131DDB9220B2FF74001C2EDE /* libReactNativeAudioStreaming.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libReactNativeAudioStreaming.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		B3E7B5881CC2AC0600A0062D /* ReactNativeAudioStreaming.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ReactNativeAudioStreaming.h; sourceTree = "<group>"; };
 		B3E7B5891CC2AC0600A0062D /* ReactNativeAudioStreaming.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ReactNativeAudioStreaming.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -44,6 +44,7 @@
 			children = (
 				B3E7B5881CC2AC0600A0062D /* ReactNativeAudioStreaming.h */,
 				B3E7B5891CC2AC0600A0062D /* ReactNativeAudioStreaming.m */,
+				131DDB9220B2FF74001C2EDE /* libReactNativeAudioStreaming.a */,
 			);
 			indentWidth = 3;
 			sourceTree = "<group>";
@@ -55,11 +56,9 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 58B511EF1A9E6C8500147676 /* Build configuration list for PBXNativeTarget "ReactNativeAudioStreaming" */;
 			buildPhases = (
-				6A5A7DA9C256587FECF17D9A /* [CP] Check Pods Manifest.lock */,
 				58B511D71A9E6C8500147676 /* Sources */,
 				58B511D81A9E6C8500147676 /* Frameworks */,
 				58B511D91A9E6C8500147676 /* CopyFiles */,
-				860F0782DC5277523F8E015A /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -67,7 +66,7 @@
 			);
 			name = ReactNativeAudioStreaming;
 			productName = RCTDataManager;
-			productReference = 1366EF862078CB7C0088CAB0 /* libReactNativeAudioStreaming.a */;
+			productReference = 131DDB9220B2FF74001C2EDE /* libReactNativeAudioStreaming.a */;
 			productType = "com.apple.product-type.library.static";
 		};
 /* End PBXNativeTarget section */
@@ -100,39 +99,6 @@
 			);
 		};
 /* End PBXProject section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		6A5A7DA9C256587FECF17D9A /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_ROOT}/../Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [[ $? != 0 ]] ; then\n    cat << EOM\nerror: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\nEOM\n    exit 1\nfi\n";
-			showEnvVarsInLog = 0;
-		};
-		860F0782DC5277523F8E015A /* [CP] Copy Pods Resources */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "[CP] Copy Pods Resources";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-ReactNativeAudioStreaming/Pods-ReactNativeAudioStreaming-resources.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		58B511D71A9E6C8500147676 /* Sources */ = {
