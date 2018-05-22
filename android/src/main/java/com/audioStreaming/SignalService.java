@@ -24,6 +24,8 @@ import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.widget.RemoteViews;
 
+import android.support.v4.app.NotificationCompat;
+
 import com.spoledge.aacdecoder.MultiPlayer;
 import com.spoledge.aacdecoder.PlayerCallback;
 
@@ -39,7 +41,7 @@ public class SignalService extends Service implements OnErrorListener,
     private Class<?> clsActivity;
     private static final int NOTIFY_ME_ID = 696969;
     private Notification notification;
-    private Notification.Builder notifyBuilder;
+    private NotificationCompat.Builder notifyBuilder;
     private NotificationManager notifyManager = null;
     private MultiPlayer aacPlayer;
 
@@ -48,7 +50,7 @@ public class SignalService extends Service implements OnErrorListener,
 
     public static final String BROADCAST_PLAYBACK_STOP = "stop",
             BROADCAST_PLAYBACK_PLAY = "pause",
-            BROADCAST_EXIT = "exit";
+            BROADCAST_EXIT = "stop";
 
     private final IBinder binder = new SignalBinder();
     private final SignalReceiver receiver = new SignalReceiver(this);
@@ -149,6 +151,8 @@ public class SignalService extends Service implements OnErrorListener,
     public void stop() {
         stopForeground(true);
         this.isPreparingStarted = false;
+        Log.d("VEDO","Notify App STOP");
+
         Log.e(TAG, "stop");
         if (this.isPlaying) {
             this.isPlaying = false;
@@ -165,10 +169,11 @@ public class SignalService extends Service implements OnErrorListener,
     }
 
     private void runAsForeground() {
-        notifyBuilder = new Notification.Builder(this)
-                .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off) // TODO Use app icon instead
-                .setContentText("")
-                .setOngoing(true);
+        notifyBuilder = new NotificationCompat.Builder(this)
+                .setSmallIcon(android.R.drawable.ic_media_play) // TODO Use app icon instead
+                .setContentTitle("TRX Radio")
+                .setContentText("Caricamento in corso...");
+
         Intent notificationIntent = new Intent(this, clsActivity);
         PendingIntent pendingIntent=PendingIntent.getActivity(this, 0,
                 notificationIntent, Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -185,14 +190,14 @@ public class SignalService extends Service implements OnErrorListener,
                 notifyManager.createNotificationChannel(channel);
             }
 
-            notifyBuilder.setChannelId("com.audioStreaming");
-            notifyBuilder.setOnlyAlertOnce(true);
+            //notifyBuilder.setChannelId("com.audioStreaming");
+            //notifyBuilder.setOnlyAlertOnce(true);
 
         }
         notification = notifyBuilder.build();
-        notification.bigContentView = new RemoteViews(getApplicationContext().getPackageName(), R.layout.streaming_notification_player);
-        notification.bigContentView.setOnClickPendingIntent(R.id.btn_streaming_notification_play, makePendingIntent(BROADCAST_PLAYBACK_PLAY));
-        notification.bigContentView.setOnClickPendingIntent(R.id.btn_streaming_notification_stop, makePendingIntent(BROADCAST_EXIT));
+        //notification.bigContentView = new RemoteViews(getApplicationContext().getPackageName(), R.layout.streaming_notification_player);
+        // notification.bigContentView.setOnClickPendingIntent(R.id.btn_streaming_notification_play, makePendingIntent(Mode.));
+        //notification.bigContentView.setOnClickPendingIntent(R.id.btn_streaming_notification_stop, makePendingIntent(Mode.STOPPED));
     }
 
     private PendingIntent makePendingIntent(String broadcast) {
@@ -340,10 +345,13 @@ public class SignalService extends Service implements OnErrorListener,
         metaIntent.putExtra("key", key);
         metaIntent.putExtra("value", value);
         sendBroadcast(metaIntent);
-
-        if (key != null && key.equals("StreamTitle") && notification != null && notification.bigContentView != null && value != null) {
-            notification.bigContentView.setTextViewText(R.id.song_name_notification, value);
-            notifyBuilder.setContent(notification.bigContentView);
+        
+        if (key != null && key.equals("StreamTitle") && notification != null && value != null) {
+            String cleanedMeta = value.replaceAll("@.*@", "");
+            String[] separatedMeta = cleanedMeta.split(" - ");
+            notifyBuilder.setContentTitle(separatedMeta[0]);
+            notifyBuilder.setContentText(separatedMeta[1]);
+            
             notifyManager.notify(NOTIFY_ME_ID, notifyBuilder.build());
         }
     }
