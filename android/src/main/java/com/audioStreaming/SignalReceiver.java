@@ -3,28 +3,30 @@ package com.audioStreaming;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.util.Log;
 
 class SignalReceiver extends BroadcastReceiver {
-    private Signal signal;
+    private final static String TAG = SignalReceiver.class.getSimpleName();
+    private SignalService signalService;
 
-    public SignalReceiver(Signal signal) {
+    public SignalReceiver(SignalService signalService) {
         super();
-        this.signal = signal;
+        this.signalService = signalService;
     }
 
     @Override
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
-        if (action.equals(Signal.BROADCAST_PLAYBACK_PLAY)) {
-            if (!this.signal.isPlaying) {
-                this.signal.play();
+        if (action.equals(SignalService.BROADCAST_PLAYBACK_PLAY)) {
+            if (!this.signalService.isPlaying) {
+                this.signalService.play();
             } else {
-                this.signal.stop();
+                Log.e(TAG, "stop() BROADCAST_PLAYBACK_PLAY");
+                this.signalService.stop();
             }
-        } else if (action.equals(Signal.BROADCAST_EXIT)) {
-            this.signal.getNotifyManager().cancelAll();
-            this.signal.stop();
-            this.signal.exitNotification();
+        } else if (action.equals(SignalService.BROADCAST_EXIT)) {
+            Log.e(TAG, "stop() BROADCAST_EXIT");
+            this.signalService.stop();
         }
     }
 }

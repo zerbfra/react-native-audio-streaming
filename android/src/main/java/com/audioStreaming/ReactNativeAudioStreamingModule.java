@@ -4,9 +4,10 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.media.AudioManager;
 import android.os.IBinder;
+import android.text.TextUtils;
 import android.util.Log;
+
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -16,143 +17,149 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
+
 import javax.annotation.Nullable;
 
 public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
-    implements ServiceConnection {
+        implements ServiceConnection {
 
-  public static final String SHOULD_SHOW_NOTIFICATION = "showInAndroidNotifications";
-  private ReactApplicationContext context;
+    private final static String TAG = ReactNativeAudioStreamingModule.class.getSimpleName();
 
-  private Class<?> clsActivity;
-  private static Signal signal;
-  private Intent bindIntent;
-  private String streamingURL;
-  private boolean shouldShowNotification;
+    public static final String SHOULD_SHOW_NOTIFICATION = "showInAndroidNotifications";
+    private ReactApplicationContext context;
 
-  public ReactNativeAudioStreamingModule(ReactApplicationContext reactContext) {
-    super(reactContext);
-    this.context = reactContext;
-    this.shouldShowNotification = false;
-  }
+    private Class<?> clsActivity;
+    private static SignalService signalService;
+    private Intent bindIntent;
+    private String streamingURL;
+    private boolean play = false;
+    private boolean shouldShowNotification;
 
-  public ReactApplicationContext getReactApplicationContextModule() {
-    return this.context;
-  }
-
-  public Class<?> getClassActivity() {
-    if (this.clsActivity == null) {
-      this.clsActivity = getCurrentActivity().getClass();
+    public ReactNativeAudioStreamingModule(ReactApplicationContext reactContext) {
+        super(reactContext);
+        this.context = reactContext;
     }
-    return this.clsActivity;
-  }
 
-  public void stopOncall() {
-    this.signal.stop();
-  }
-
-  public Signal getSignal() {
-    return signal;
-  }
-
-  public void sendEvent(ReactContext reactContext, String eventName, @Nullable WritableMap params) {
-    this.context.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-        .emit(eventName, params);
-  }
-
-  @Override public String getName() {
-    return "ReactNativeAudioStreaming";
-  }
-
-  @Override public void initialize() {
-    super.initialize();
-
-    try {
-      bindIntent = new Intent(this.context, Signal.class);
-      this.context.bindService(bindIntent, this, Context.BIND_AUTO_CREATE);
-    } catch (Exception e) {
-      Log.e("ERROR", e.getMessage());
+    public ReactApplicationContext getReactApplicationContextModule() {
+        return this.context;
     }
-  }
 
-  @Override public void onServiceConnected(ComponentName className, IBinder service) {
-    signal = ((Signal.RadioBinder) service).getService();
-    signal.setData(this.context, this);
-    WritableMap params = Arguments.createMap();
-    sendEvent(this.getReactApplicationContextModule(), "streamingOpen", params);
-  }
+    public Class<?> getClassActivity() {
+        if (this.clsActivity == null && getCurrentActivity() != null) {
+            this.clsActivity = getCurrentActivity().getClass();
+        }
+        return this.clsActivity;
+    }
 
-  @Override public void onServiceDisconnected(ComponentName className) {
-    signal = null;
-  }
+    public void stopOncall() {
+        Log.e(TAG, "stop() stopOncall");
+        if (signalService != null)
+            this.signalService.stop();
+    }
 
-  private AudioManager.OnAudioFocusChangeListener focusChangeListener =
-          new AudioManager.OnAudioFocusChangeListener() {
-            public void onAudioFocusChange(int focusChange) {
-              AudioManager am =(AudioManager)context.getSystemService(Context.AUDIO_SERVICE);
-              switch (focusChange) {
+    public SignalService getSignal() {
+        return signalService;
+    }
 
-                case (AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) :
-                  // stopOncall();
-                  signal.aTrack.setVolume(0.2f);
-                  break;
-                case (AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) :
-                  //stopOncall();
-                  signal.aTrack.setVolume(0.0f);
-                  break;
-                case (AudioManager.AUDIOFOCUS_LOSS) :
-                  // stopOncall();
-                  signal.aTrack.setVolume(0.0f);
-                  break;
-                case (AudioManager.AUDIOFOCUS_GAIN) :
-                  signal.aTrack.setVolume(1.0f);
-                  break;
-                default: break;
-              }
+    public void sendEvent(ReactContext reactContext, String eventName, @Nullable WritableMap params) {
+        this.context.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                .emit(eventName, params);
+    }
+
+    @Override
+    public String getName() {
+        return "ReactNativeAudioStreaming";
+    }
+
+    @Override
+    public void initialize() {
+        super.initialize();
+
+        try {
+            bindIntent = new Intent(this.context, SignalService.class);
+            this.context.startService(bindIntent);
+            this.context.bindService(bindIntent, this, Context.BIND_AUTO_CREATE);
+        } catch (Exception e) {
+            Log.e("ERROR", e.getMessage());
+        }
+    }
+
+    @Override
+    public void onServiceConnected(ComponentName className, IBinder service) {
+        signalService = ((SignalService.SignalBinder) service).getService();
+        signalService.setData(this.context, this);
+        if (play) {
+            playInternal();
+        }
+        WritableMap params = Arguments.createMap();
+        sendEvent(this.getReactApplicationContextModule(), "streamingOpen", params);
+    }
+
+    @Override
+    public void onServiceDisconnected(ComponentName className) {
+        signalService = null;
+    }
+
+    @ReactMethod
+    public void play(String streamingURL, ReadableMap options) {
+        this.streamingURL = streamingURL;
+        this.shouldShowNotification =
+                options.hasKey(SHOULD_SHOW_NOTIFICATION) && options.getBoolean(SHOULD_SHOW_NOTIFICATION);
+        playInternal();
+    }
+
+    private void playInternal() {
+        play = true;
+        if (signalService != null) {
+            if (isServicePlaying() && TextUtils.equals(signalService.getStreamingURL(), streamingURL)) {
+                // do nothing
+            } else {
+                signalService.setURLStreaming(streamingURL); // URL of MP3 or AAC stream
+                signalService.play();
             }
-          };
-
-  @ReactMethod public void play(String streamingURL, ReadableMap options) {
-
-    AudioManager am = (AudioManager)context.getSystemService(Context.AUDIO_SERVICE);
-    int amResult = am.requestAudioFocus(focusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
-
-    if (amResult == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-      this.streamingURL = streamingURL;
-      this.shouldShowNotification = options.hasKey(SHOULD_SHOW_NOTIFICATION) && options.getBoolean(SHOULD_SHOW_NOTIFICATION);
-      signal.setURLStreaming(streamingURL); // URL of MP3 or AAC stream
-      playInternal();
+//            if (shouldShowNotification) {
+//                signalService.showNotification();
+//            }
+        }
     }
-  }
 
-  private void playInternal() {
-    signal.play();
-    if (shouldShowNotification) {
-      signal.showNotification();
+    @ReactMethod
+    public void stop() {
+        Log.e(TAG, "stop() stop() from react code");
+        play = false;
+        if (signalService != null)
+            signalService.stop();
     }
-  }
 
-  @ReactMethod public void stop() {
-    signal.stop();
-  }
+    @ReactMethod
+    public void pause() {
+        // Not implemented on aac
+        Log.e(TAG, "stop() from pause()");
+        this.stop();
+    }
 
-  @ReactMethod public void pause() {
-    // Not implemented on aac
-    this.stop();
-  }
+    @ReactMethod
+    public void resume() {
+        // Not implemented on aac
+        playInternal();
+    }
 
-  @ReactMethod public void resume() {
-    // Not implemented on aac
-    playInternal();
-  }
+    @ReactMethod
+    public void destroyNotification() {
+        signalService.exitNotification();
+    }
 
-  @ReactMethod public void destroyNotification() {
-    signal.exitNotification();
-  }
+    private boolean isServicePlaying() {
+        return signalService != null && signalService.isPlaying;
+    }
 
-  @ReactMethod public void getStatus(Callback callback) {
-    WritableMap state = Arguments.createMap();
-    state.putString("status", signal != null && signal.isPlaying ? Mode.PLAYING : Mode.STOPPED);
-    callback.invoke(null, state);
-  }
+    @ReactMethod
+    public void getStatus(Callback callback) {
+        WritableMap state = Arguments.createMap();
+        state.putString("status", isServicePlaying() ? Mode.PLAYING : Mode.STOPPED);
+        if (signalService != null) {
+            state.putString("streamUrl", signalService.getStreamingURL());
+        }
+        callback.invoke(null, state);
+    }
 }
