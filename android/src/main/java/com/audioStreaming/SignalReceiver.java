@@ -24,7 +24,7 @@ class SignalReceiver extends BroadcastReceiver {
                 this.signal.pause();
             }
         } else if (action.equals(SignalService.BROADCAST_EXIT)) {
-            this.signal.getNotifyManager().cancelAll();
+            //this.signal.getNotifyManager().cancelAll();
             this.signal.stop();
             this.signal.exitNotification();
         }

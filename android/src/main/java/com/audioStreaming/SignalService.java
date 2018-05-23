@@ -111,18 +111,10 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
                 .setContentTitle("TRX Radio")
                 .setContentText("Caricamento in corso...");
 
-        Intent notificationIntent = new Intent(this, clsActivity);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
-                notificationIntent, Intent.FLAG_ACTIVITY_NEW_TASK);
-
-        notifyBuilder.setContentIntent(pendingIntent);
-
         notifyManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel =
-                    new NotificationChannel("com.audioStreaming", "Audio Streaming",
-                            NotificationManager.IMPORTANCE_HIGH);
+            NotificationChannel channel = new NotificationChannel("com.audioStreaming", "Audio Streaming", NotificationManager.IMPORTANCE_HIGH);
             if (notifyManager != null) {
                 notifyManager.createNotificationChannel(channel);
             }
@@ -263,11 +255,13 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
 
     public void play() {
         startForeground(NOTIFY_ME_ID, notification);
+        /*
         if (player != null) {
             player.setPlayWhenReady(false);
             player.stop();
             player.seekTo(0);
         }
+        */
 
         // Create player
         Handler mainHandler = new Handler();
@@ -290,6 +284,7 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
     public void start() {
         Assertions.assertNotNull(player);
         player.setPlayWhenReady(true);
+        sendBroadcast(new Intent(Mode.PLAYING));
     }
 
     public void pause() {
@@ -304,47 +299,14 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
     }
 
     public void stop() {
-        stopForeground(true);
         Assertions.assertNotNull(player);
+        stopForeground(true);
         player.setPlayWhenReady(false);
         sendBroadcast(new Intent(Mode.STOPPED));
     }
 
     public boolean isPlaying() {
-        //Assertions.assertNotNull(player);
         return player != null && player.getPlayWhenReady() && player.getPlaybackState() != ExoPlayer.STATE_ENDED;
-    }
-
-    public long getDuration() {
-        //Assertions.assertNotNull(player);
-        return player != null ? player.getDuration() : new Long(0);
-    }
-
-    public long getCurrentPosition() {
-        //Assertions.assertNotNull(player);
-        return player != null ? player.getCurrentPosition() : new Long(0);
-    }
-
-    public int getBufferPercentage() {
-        Assertions.assertNotNull(player);
-        return player.getBufferedPercentage();
-    }
-
-    public void seekTo(long timeMillis) {
-        Assertions.assertNotNull(player);
-        player.seekTo(timeMillis);
-    }
-
-
-    public boolean isConnected() {
-        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo netInfo = cm.getActiveNetworkInfo();
-        return netInfo != null && netInfo.isConnectedOrConnecting();
-    }
-
-    public void setPlaybackRate(float speed) {
-        PlaybackParameters pp = new PlaybackParameters(speed, 1);
-        player.setPlaybackParameters(pp);
     }
 
     /**
@@ -368,65 +330,6 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         return Service.START_NOT_STICKY;
-    }
-
-    // Notification
-    private PendingIntent makePendingIntent(String broadcast) {
-        Intent intent = new Intent(broadcast);
-        return PendingIntent.getBroadcast(this.context, 0, intent, 0);
-    }
-
-    public NotificationManager getNotifyManager() {
-        return notifyManager;
-    }
-
-
-    public String getAppTitle() {
-        ApplicationInfo applicationInfo = context.getApplicationInfo();
-        int stringId = applicationInfo.labelRes;
-        String title = stringId == 0 ? applicationInfo.nonLocalizedLabel.toString() : context.getString(stringId);
-        return title;
-    }
-
-    public void showNotification() {
-        if (this.clsActivity == null) {
-            this.clsActivity = this.module.getClassActivity();
-        }
-        Resources res = context.getResources();
-        String packageName = context.getPackageName();
-        int smallIconResId = res.getIdentifier("ic_notification", "mipmap", packageName);
-        int largeIconResId = res.getIdentifier("ic_launcher", "mipmap", packageName);
-        Bitmap largeIconBitmap = BitmapFactory.decodeResource(res, largeIconResId);
-        remoteViews = new RemoteViews(packageName, R.layout.streaming_notification_player);
-        notifyBuilder = new NotificationCompat.Builder(this.context)
-                .setContent(remoteViews)
-                .setSmallIcon(smallIconResId)
-                .setLargeIcon(largeIconBitmap)
-                .setContentTitle(this.getAppTitle())
-                .setContentText("Playing an audio file")
-                .setOngoing(true)
-        ;
-
-        Intent resultIntent = new Intent(this.context, this.clsActivity);
-        resultIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        resultIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-
-        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this.context);
-        stackBuilder.addParentStack(this.clsActivity);
-        stackBuilder.addNextIntent(resultIntent);
-
-        PendingIntent resultPendingIntent = stackBuilder.getPendingIntent(0,
-                PendingIntent.FLAG_UPDATE_CURRENT);
-
-        notifyBuilder.setContentIntent(resultPendingIntent);
-
-        //remoteViews.setTextViewText(R.id.title, this.getAppTitle());
-        //remoteViews.setTextViewText(R.id.subtitle, "Playing an audio file");
-        //remoteViews.setImageViewResource(R.id.streaming_icon, largeIconResId);
-        //remoteViews.setOnClickPendingIntent(R.id.btn_streaming_notification_play, makePendingIntent(BROADCAST_PLAYBACK_PLAY));
-        //remoteViews.setOnClickPendingIntent(R.id.btn_streaming_notification_stop, makePendingIntent(BROADCAST_EXIT));
-        notifyManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        notifyManager.notify(NOTIFY_ME_ID, notifyBuilder.build());
     }
 
 
