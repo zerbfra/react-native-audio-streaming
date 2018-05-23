@@ -1,5 +1,8 @@
+
 package com.audioStreaming;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
@@ -53,14 +56,17 @@ import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.metadata.Metadata;
 
+import android.support.v4.app.NotificationCompat;
+
 import java.io.IOException;
 import java.util.List;
 
-public class Signal extends Service implements ExoPlayer.EventListener, MetadataRenderer.Output, ExtractorMediaSource.EventListener {
+public class SignalService extends Service implements ExoPlayer.EventListener, MetadataRenderer.Output, ExtractorMediaSource.EventListener {
     private static final String TAG = "ReactNative";
 
     // Notification
     private Class<?> clsActivity;
+    private Notification notification;
     private static final int NOTIFY_ME_ID = 696969;
     private NotificationCompat.Builder notifyBuilder;
     private NotificationManager notifyManager = null;
@@ -73,7 +79,7 @@ public class Signal extends Service implements ExoPlayer.EventListener, Metadata
             BROADCAST_PLAYBACK_PLAY = "pause",
             BROADCAST_EXIT = "exit";
 
-    private final IBinder binder = new RadioBinder();
+    private final IBinder binder = new SignalBinder();
     private final SignalReceiver receiver = new SignalReceiver(this);
     private Context context;
     private String streamingURL;
@@ -90,6 +96,49 @@ public class Signal extends Service implements ExoPlayer.EventListener, Metadata
         intentFilter.addAction(BROADCAST_PLAYBACK_PLAY);
         intentFilter.addAction(BROADCAST_EXIT);
         registerReceiver(this.receiver, intentFilter);
+    }
+
+    public class SignalBinder extends Binder {
+        public SignalService getService() {
+            return SignalService.this;
+        }
+    }
+
+    private void runAsForeground() {
+        notifyBuilder = new NotificationCompat.Builder(this)
+                .setSmallIcon(android.R.drawable.ic_media_play) // TODO Use app icon instead
+                .setContentTitle("TRX Radio")
+                .setContentText("Caricamento in corso...");
+
+        Intent notificationIntent = new Intent(this, clsActivity);
+        PendingIntent pendingIntent=PendingIntent.getActivity(this, 0,
+                notificationIntent, Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        notifyBuilder.setContentIntent(pendingIntent);
+
+        notifyManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel =
+                    new NotificationChannel("com.audioStreaming", "Audio Streaming",
+                            NotificationManager.IMPORTANCE_HIGH);
+            if (notifyManager != null) {
+                notifyManager.createNotificationChannel(channel);
+            }
+
+            //notifyBuilder.setChannelId("com.audioStreaming");
+            //notifyBuilder.setOnlyAlertOnce(true);
+
+        }
+        notification = notifyBuilder.build();
+        //notification.bigContentView = new RemoteViews(getApplicationContext().getPackageName(), R.layout.streaming_notification_player);
+        // notification.bigContentView.setOnClickPendingIntent(R.id.btn_streaming_notification_play, makePendingIntent(Mode.));
+        //notification.bigContentView.setOnClickPendingIntent(R.id.btn_streaming_notification_stop, makePendingIntent(Mode.STOPPED));
+    }
+
+
+    public void setURLStreaming(String streamingURL) {
+        this.streamingURL = streamingURL;
     }
 
     @Override
@@ -130,6 +179,8 @@ public class Signal extends Service implements ExoPlayer.EventListener, Metadata
         if (this.phoneManager != null) {
             this.phoneManager.listen(this.phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
         }
+
+        runAsForeground();
     }
 
     @Override
@@ -205,29 +256,31 @@ public class Signal extends Service implements ExoPlayer.EventListener, Metadata
     /**
      *  Player controls
      */
-    
-    public void play(String url) {
+
+
+    public void play() {
+        startForeground(NOTIFY_ME_ID, notification);
         if (player != null ) {
             player.setPlayWhenReady(false);
             player.stop();
             player.seekTo(0);
         }
-        
+
         boolean playWhenReady = true; // TODO Allow user to customize this
-        this.streamingURL = url;
-        
+        // this.streamingURL = url;
+
         // Create player
         Handler mainHandler = new Handler();
         TrackSelector trackSelector = new DefaultTrackSelector();
         LoadControl loadControl = new DefaultLoadControl();
         this.player = ExoPlayerFactory.newSimpleInstance(this.getApplicationContext(), trackSelector, loadControl);
-        
+
         // Create source
         ExtractorsFactory extractorsFactory = new DefaultExtractorsFactory();
         DefaultBandwidthMeter bandwidthMeter = new DefaultBandwidthMeter();
         DataSource.Factory dataSourceFactory = new DefaultDataSourceFactory(this.getApplication(), getDefaultUserAgent(), bandwidthMeter);
         MediaSource audioSource = new ExtractorMediaSource(Uri.parse(this.streamingURL), dataSourceFactory, extractorsFactory, mainHandler, this);
-        
+
         // Start preparing audio
         player.prepare(audioSource);
         player.addListener(this);
@@ -251,6 +304,7 @@ public class Signal extends Service implements ExoPlayer.EventListener, Metadata
     }
     
     public void stop() {
+        stopForeground(true);
         Assertions.assertNotNull(player);
         player.setPlayWhenReady(false);
         sendBroadcast(new Intent(Mode.STOPPED));
@@ -280,6 +334,8 @@ public class Signal extends Service implements ExoPlayer.EventListener, Metadata
         Assertions.assertNotNull(player);
         player.seekTo(timeMillis);
     }
+
+
     
     public boolean isConnected() {
         ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -325,11 +381,6 @@ public class Signal extends Service implements ExoPlayer.EventListener, Metadata
         return notifyManager;
     }
     
-    public class RadioBinder extends Binder {
-        public Signal getService() {
-            return Signal.this;
-        }
-    }
     
     public String getAppTitle() {
         ApplicationInfo applicationInfo = context.getApplicationInfo();
@@ -378,6 +429,7 @@ public class Signal extends Service implements ExoPlayer.EventListener, Metadata
         notifyManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         notifyManager.notify(NOTIFY_ME_ID, notifyBuilder.build());
     }
+
     
     public void clearNotification() {
         if (notifyManager != null) {

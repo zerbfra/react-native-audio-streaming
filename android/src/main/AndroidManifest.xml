@@ -1,13 +1,12 @@
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          package="com.audioStreaming">
+    package="com.audioStreaming">
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <application
         android:allowBackup="true">
         <service
-            android:name="com.audioStreaming.Signal"
+            android:name="com.audioStreaming.SignalService"
             android:enabled="true"
-            android:theme="@android:style/Theme.NoTitleBar"/>
+            android:exported="true"/>
     </application>
 </manifest>
-  

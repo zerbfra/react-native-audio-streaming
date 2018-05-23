@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
+import android.text.TextUtils;
 import android.util.Log;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Callback;
@@ -25,8 +26,10 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
   private ReactApplicationContext context;
     
   private Class<?> clsActivity;
-  private static Signal signal;
+  private static SignalService signal;
   private Intent bindIntent;
+  private String streamingURL;
+  private boolean play = false;
   private boolean shouldShowNotification;
     
     
@@ -48,10 +51,10 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
   }
     
   public void stopOncall() {
-    this.signal.stop();
+        if (this.signal != null) this.signal.stop();
   }
     
-  public Signal getSignal() {
+  public SignalService getSignal() {
     return signal;
   }
     
@@ -64,71 +67,99 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
     return "ReactNativeAudioStreaming";
   }
     
-  @Override public void initialize() {
+  @Override 
+  public void initialize() {
     super.initialize();
         
     try {
-      bindIntent = new Intent(this.context, Signal.class);
+      bindIntent = new Intent(this.context, SignalService.class);
+      
+      this.context.startService(bindIntent);
       this.context.bindService(bindIntent, this, Context.BIND_AUTO_CREATE);
+
     } catch (Exception e) {
       Log.e("ERROR", e.getMessage());
     }
   }
     
-  @Override public void onServiceConnected(ComponentName className, IBinder service) {
-    signal = ((Signal.RadioBinder) service).getService();
+  @Override
+  public void onServiceConnected(ComponentName className, IBinder service) {
+    signal = ((SignalService.SignalBinder) service).getService();
     signal.setData(this.context, this);
+    if (play) {
+      playInternal();
+    }
     WritableMap params = Arguments.createMap();
     sendEvent(this.getReactApplicationContextModule(), "streamingOpen", params);
   }
     
-  @Override public void onServiceDisconnected(ComponentName className) {
+  @Override 
+  public void onServiceDisconnected(ComponentName className) {
     signal = null;
   }
     
-  @ReactMethod public void play(String streamingURL, ReadableMap options) {
+  @ReactMethod
+  public void play(String streamingURL, ReadableMap options) {
+    this.streamingURL = streamingURL;
     this.shouldShowNotification = options.hasKey(SHOULD_SHOW_NOTIFICATION) && options.getBoolean(SHOULD_SHOW_NOTIFICATION);
-    playInternal(streamingURL);
+    playInternal();
   }
     
-  private void playInternal(String streamingURL) {
-    signal.play(streamingURL);
-        
-    if (shouldShowNotification) {
-      signal.showNotification();
+  private void playInternal() {
+    play = true;
+    if (signal != null) {
+
+          Log.e("IO", "PLAY START");
+            signal.setURLStreaming(streamingURL); // URL of MP3 or AAC stream
+            signal.play();
+
+//            if (shouldShowNotification) {
+//                signalService.showNotification();
+//            }
     }
   }
     
-  @ReactMethod public void stop() {
-    signal.stop();
+  @ReactMethod 
+  public void stop() {
+            play = false;
+        if (signal != null) signal.stop();
   }
     
-  @ReactMethod public void pause() {
+  @ReactMethod 
+  public void pause() {
     // Not implemented on aac
     this.stop();
   }
     
-  @ReactMethod public void resume() {
+  @ReactMethod 
+  public void resume() {
     // Not implemented on aac
-    signal.resume();
+    playInternal();
   }
     
-  @ReactMethod public void destroyNotification() {
+  @ReactMethod
+   public void destroyNotification() {
     signal.exitNotification();
   }
     
-  @ReactMethod public void seekToTime(int seconds) {
-    signal.seekTo(seconds * 1000);
+  @ReactMethod
+   public void seekToTime(int seconds) {
+    // signal.seekTo(seconds * 1000);
   }
+
+    private boolean isServicePlaying() {
+        return signal != null; // && signal.isPlaying;
+    }
     
-  @ReactMethod public void getStatus(Callback callback) {
-    WritableMap state = Arguments.createMap();
-    state.putDouble("duration", signal.getDuration());
-    state.putDouble("progress", signal.getCurrentPosition());
-    state.putString("status", signal != null && signal.isPlaying() ? Mode.PLAYING : Mode.STOPPED);
-    state.putString("url", signal.getStreamingURL());
-    callback.invoke(null, state);
-  }
+    @ReactMethod
+    public void getStatus(Callback callback) {
+        WritableMap state = Arguments.createMap();
+        state.putString("status", isServicePlaying() ? Mode.PLAYING : Mode.STOPPED);
+        if (signal != null) {
+            state.putString("streamUrl", signal.getStreamingURL());
+        }
+        callback.invoke(null, state);
+    }
 
   @ReactMethod public void setCurrentPlaybackRate(float speed) {
     signal.setPlaybackRate(speed);
