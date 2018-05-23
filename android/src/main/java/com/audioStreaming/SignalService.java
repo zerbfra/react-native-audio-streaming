@@ -28,6 +28,7 @@ import android.graphics.BitmapFactory;
 import android.content.pm.ApplicationInfo;
 
 import com.facebook.infer.annotation.Assertions;
+import com.facebook.react.bridge.ReactMethod;
 import com.google.android.exoplayer2.DefaultLoadControl;
 import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.ExoPlayer;
@@ -111,7 +112,7 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
                 .setContentText("Caricamento in corso...");
 
         Intent notificationIntent = new Intent(this, clsActivity);
-        PendingIntent pendingIntent=PendingIntent.getActivity(this, 0,
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
                 notificationIntent, Intent.FLAG_ACTIVITY_NEW_TASK);
 
         notifyBuilder.setContentIntent(pendingIntent);
@@ -126,14 +127,9 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
                 notifyManager.createNotificationChannel(channel);
             }
 
-            //notifyBuilder.setChannelId("com.audioStreaming");
-            //notifyBuilder.setOnlyAlertOnce(true);
 
         }
         notification = notifyBuilder.build();
-        //notification.bigContentView = new RemoteViews(getApplicationContext().getPackageName(), R.layout.streaming_notification_player);
-        // notification.bigContentView.setOnClickPendingIntent(R.id.btn_streaming_notification_play, makePendingIntent(Mode.));
-        //notification.bigContentView.setOnClickPendingIntent(R.id.btn_streaming_notification_stop, makePendingIntent(Mode.STOPPED));
     }
 
 
@@ -147,17 +143,17 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
     }
 
     @Override
-    public void     onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
+    public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
 
     }
-    
+
     public void setData(Context context, ReactNativeAudioStreamingModule module) {
         this.context = context;
         this.clsActivity = module.getClassActivity();
         this.module = module;
-        
+
         this.eventsReceiver = new EventsReceiver(this.module);
-        
+
         registerReceiver(this.eventsReceiver, new IntentFilter(Mode.CREATED));
         registerReceiver(this.eventsReceiver, new IntentFilter(Mode.IDLE));
         registerReceiver(this.eventsReceiver, new IntentFilter(Mode.DESTROYED));
@@ -190,7 +186,7 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
 
     @Override
     public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
-        Log.d("onPlayerStateChanged", ""+playbackState);
+        Log.d("onPlayerStateChanged", "" + playbackState);
 
         switch (playbackState) {
             case ExoPlayer.STATE_IDLE:
@@ -214,14 +210,16 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
     }
 
     @Override
-    public void onTimelineChanged(Timeline timeline, Object manifest) {}
-    
-    
+    public void onTimelineChanged(Timeline timeline, Object manifest) {
+    }
+
+
     @Override
     public void onPlayerError(ExoPlaybackException error) {
         Log.d(TAG, error.getMessage());
         sendBroadcast(new Intent(Mode.ERROR));
     }
+
     @Override
     public void onPositionDiscontinuity() {
 
@@ -252,22 +250,24 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
         result.append(")");
         return result.toString();
     }
-    
+
     /**
-     *  Player controls
+     * Player controls
      */
 
+    void updateMetadata(String title, String artist) {
+        notifyBuilder.setContentTitle(title);
+        notifyBuilder.setContentText(artist);
+        notifyManager.notify(NOTIFY_ME_ID, notifyBuilder.build());
+    }
 
     public void play() {
         startForeground(NOTIFY_ME_ID, notification);
-        if (player != null ) {
+        if (player != null) {
             player.setPlayWhenReady(false);
             player.stop();
             player.seekTo(0);
         }
-
-        boolean playWhenReady = true; // TODO Allow user to customize this
-        // this.streamingURL = url;
 
         // Create player
         Handler mainHandler = new Handler();
@@ -284,59 +284,58 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
         // Start preparing audio
         player.prepare(audioSource);
         player.addListener(this);
-        player.setPlayWhenReady(playWhenReady);
+        player.setPlayWhenReady(true);
     }
-    
+
     public void start() {
         Assertions.assertNotNull(player);
         player.setPlayWhenReady(true);
     }
-    
+
     public void pause() {
         Assertions.assertNotNull(player);
         player.setPlayWhenReady(false);
         sendBroadcast(new Intent(Mode.STOPPED));
     }
-    
+
     public void resume() {
         Assertions.assertNotNull(player);
         player.setPlayWhenReady(true);
     }
-    
+
     public void stop() {
         stopForeground(true);
         Assertions.assertNotNull(player);
         player.setPlayWhenReady(false);
         sendBroadcast(new Intent(Mode.STOPPED));
     }
-    
+
     public boolean isPlaying() {
         //Assertions.assertNotNull(player);
         return player != null && player.getPlayWhenReady() && player.getPlaybackState() != ExoPlayer.STATE_ENDED;
     }
-    
+
     public long getDuration() {
         //Assertions.assertNotNull(player);
         return player != null ? player.getDuration() : new Long(0);
     }
-    
+
     public long getCurrentPosition() {
         //Assertions.assertNotNull(player);
         return player != null ? player.getCurrentPosition() : new Long(0);
     }
-    
+
     public int getBufferPercentage() {
         Assertions.assertNotNull(player);
         return player.getBufferedPercentage();
     }
-    
+
     public void seekTo(long timeMillis) {
         Assertions.assertNotNull(player);
         player.seekTo(timeMillis);
     }
 
 
-    
     public boolean isConnected() {
         ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo netInfo = cm.getActiveNetworkInfo();
@@ -347,50 +346,50 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
         PlaybackParameters pp = new PlaybackParameters(speed, 1);
         player.setPlaybackParameters(pp);
     }
-    
+
     /**
-     *  Meta data information
+     * Meta data information
      */
-    
+
     @Override
     public void onMetadata(Metadata metadata) {
 
     }
-    
+
     /**
-     *  Notification control
+     * Notification control
      */
-    
+
     @Override
     public IBinder onBind(Intent intent) {
         return binder;
     }
-    
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         return Service.START_NOT_STICKY;
     }
-    
+
     // Notification
     private PendingIntent makePendingIntent(String broadcast) {
         Intent intent = new Intent(broadcast);
         return PendingIntent.getBroadcast(this.context, 0, intent, 0);
     }
-    
+
     public NotificationManager getNotifyManager() {
         return notifyManager;
     }
-    
-    
+
+
     public String getAppTitle() {
         ApplicationInfo applicationInfo = context.getApplicationInfo();
         int stringId = applicationInfo.labelRes;
         String title = stringId == 0 ? applicationInfo.nonLocalizedLabel.toString() : context.getString(stringId);
         return title;
     }
-    
+
     public void showNotification() {
-        if (this.clsActivity == null) { 
+        if (this.clsActivity == null) {
             this.clsActivity = this.module.getClassActivity();
         }
         Resources res = context.getResources();
@@ -400,27 +399,27 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
         Bitmap largeIconBitmap = BitmapFactory.decodeResource(res, largeIconResId);
         remoteViews = new RemoteViews(packageName, R.layout.streaming_notification_player);
         notifyBuilder = new NotificationCompat.Builder(this.context)
-        .setContent(remoteViews)
-        .setSmallIcon(smallIconResId)
-        .setLargeIcon(largeIconBitmap)
-        .setContentTitle(this.getAppTitle())
-        .setContentText("Playing an audio file")
-        .setOngoing(true)
+                .setContent(remoteViews)
+                .setSmallIcon(smallIconResId)
+                .setLargeIcon(largeIconBitmap)
+                .setContentTitle(this.getAppTitle())
+                .setContentText("Playing an audio file")
+                .setOngoing(true)
         ;
-        
+
         Intent resultIntent = new Intent(this.context, this.clsActivity);
         resultIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         resultIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        
+
         TaskStackBuilder stackBuilder = TaskStackBuilder.create(this.context);
         stackBuilder.addParentStack(this.clsActivity);
         stackBuilder.addNextIntent(resultIntent);
-        
+
         PendingIntent resultPendingIntent = stackBuilder.getPendingIntent(0,
-                                                                          PendingIntent.FLAG_UPDATE_CURRENT);
-        
+                PendingIntent.FLAG_UPDATE_CURRENT);
+
         notifyBuilder.setContentIntent(resultPendingIntent);
-        
+
         //remoteViews.setTextViewText(R.id.title, this.getAppTitle());
         //remoteViews.setTextViewText(R.id.subtitle, "Playing an audio file");
         //remoteViews.setImageViewResource(R.id.streaming_icon, largeIconResId);
@@ -430,13 +429,13 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
         notifyManager.notify(NOTIFY_ME_ID, notifyBuilder.build());
     }
 
-    
+
     public void clearNotification() {
         if (notifyManager != null) {
             notifyManager.cancel(NOTIFY_ME_ID);
         }
     }
-    
+
     public void exitNotification() {
         notifyManager.cancelAll();
         clearNotification();
