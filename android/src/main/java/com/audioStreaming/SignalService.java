@@ -61,6 +61,8 @@ import android.support.v4.app.NotificationCompat;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class SignalService extends Service implements ExoPlayer.EventListener, MetadataRenderer.Output, ExtractorMediaSource.EventListener {
     private static final String TAG = "ReactNative";
@@ -72,6 +74,8 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
     private NotificationCompat.Builder notifyBuilder;
     private NotificationManager notifyManager = null;
     public static RemoteViews remoteViews;
+
+    private Timer metadataTimer;
 
     // Player
     private SimpleExoPlayer player = null;
@@ -283,6 +287,25 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
         player.prepare(audioSource);
         player.addListener(this);
         player.setPlayWhenReady(true);
+
+        updateMetadataTimer();
+
+    }
+
+    public void updateMetadataTimer () {
+        metadataTimer = new Timer( );
+        metadataTimer.scheduleAtFixedRate(new TimerTask() {
+
+            @Override
+            public void run() {
+                // start updating metadata
+                Intent metaIntent = new Intent(Mode.METADATA_UPDATED);
+                metaIntent.putExtra("key", "TimerAndroid");
+                metaIntent.putExtra("value", "TimerAndroid");
+                sendBroadcast(metaIntent);
+
+            }
+        }, 1,10000);
     }
 
     public void start() {
@@ -295,6 +318,7 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
         Assertions.assertNotNull(player);
         player.setPlayWhenReady(false);
         sendBroadcast(new Intent(Mode.STOPPED));
+        metadataTimer.cancel();
     }
 
     public void resume() {
@@ -307,6 +331,7 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
         stopForeground(true);
         player.setPlayWhenReady(false);
         sendBroadcast(new Intent(Mode.STOPPED));
+        metadataTimer.cancel();
     }
 
     public boolean isPlaying() {
@@ -340,6 +365,7 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
     public void onTaskRemoved(Intent rootIntent) {
         this.clearNotification();
         if(this.isPlaying()) this.stop();
+        if(metadataTimer != null) metadataTimer.cancel();
 
     }
 
