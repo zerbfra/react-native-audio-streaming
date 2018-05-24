@@ -99,6 +99,7 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
         registerReceiver(this.receiver, intentFilter);
     }
 
+
     public class SignalBinder extends Binder {
         public SignalService getService() {
             return SignalService.this;
@@ -330,6 +331,13 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         return Service.START_STICKY;
+    }
+
+
+    public void onTaskRemoved(Intent rootIntent) {
+        this.clearNotification();
+        this.stop();
+
     }
 
 

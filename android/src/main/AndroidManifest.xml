@@ -7,6 +7,7 @@
         <service
             android:name="com.audioStreaming.SignalService"
             android:enabled="true"
+            android:stopWithTask="false"
             android:exported="true"/>
     </application>
 </manifest>
