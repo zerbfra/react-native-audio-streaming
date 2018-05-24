@@ -110,8 +110,10 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
   }
 
   @ReactMethod
-  void updateMetadata(String title, String artist) {
-    signal.updateMetadata(title, artist);
+  void updateTrackInfo(ReadableMap info) {
+    if(info.hasKey("trackTitle") && info.hasKey("trackArtist")) {
+      signal.updateMetadata(info.getString("trackTitle"), info.getString("trackArtist"));
+    }
   }
 
   @ReactMethod

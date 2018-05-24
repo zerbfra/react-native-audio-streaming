@@ -112,6 +112,7 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
                 .setContentTitle("TRX Radio")
                 .setContentText("Caricamento in corso...");
 
+
         notifyManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -119,11 +120,11 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
             if (notifyManager != null) {
                 notifyManager.createNotificationChannel(channel);
             }
-
-
         }
         notification = notifyBuilder.build();
     }
+
+
 
 
     public void setURLStreaming(String streamingURL) {
@@ -249,9 +250,11 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
      */
 
     void updateMetadata(String title, String artist) {
-        notifyBuilder.setContentTitle(title);
-        notifyBuilder.setContentText(artist);
-        notifyManager.notify(NOTIFY_ME_ID, notifyBuilder.build());
+        if(this.isPlaying()) {
+            notifyBuilder.setContentTitle(title);
+            notifyBuilder.setContentText(artist);
+            notifyManager.notify(NOTIFY_ME_ID, notifyBuilder.build());
+        }
     }
 
     public void play() {
@@ -336,7 +339,7 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
 
     public void onTaskRemoved(Intent rootIntent) {
         this.clearNotification();
-        this.stop();
+        if(this.isPlaying()) this.stop();
 
     }
 
