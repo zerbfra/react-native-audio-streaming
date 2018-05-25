@@ -59,6 +59,8 @@ import com.google.android.exoplayer2.metadata.Metadata;
 
 import android.support.v4.app.NotificationCompat;
 
+import android.graphics.Color;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Timer;
