@@ -113,6 +113,7 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
     private void runAsForeground() {
         notifyBuilder = new NotificationCompat.Builder(this)
                 .setSmallIcon(android.R.drawable.ic_media_play) // TODO Use app icon instead
+                .setColor(Color.parseColor("#AB0074"))
                 .setContentTitle("TRX Radio")
                 .setContentText("Caricamento in corso...");
 
