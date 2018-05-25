@@ -168,15 +168,18 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback) {
       
       for (AVMetadataItem* metadata in playerItem.timedMetadata) {
          if([metadata.commonKey isEqualToString:@"title"]){
-            [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{
-                                                                                            @"status": @"METADATA_UPDATED",
-                                                                                            @"key": @"StreamTitle",
-                                                                                            @"value": metadata.stringValue
-                                                                                            }];
+            [self performSelector:@selector(sendNewMetadata:) withObject:metadata.stringValue afterDelay:10.0];
          }
       }
    }
-   
+}
+
+- (void) sendNewMetadata:(NSString*) new {
+   [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{
+                                                                                   @"status": @"METADATA_UPDATED",
+                                                                                   @"key": @"StreamTitle",
+                                                                                   @"value": new
+                                                                                   }];
 }
 
 #pragma mark - Audio Session
@@ -358,9 +361,16 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback) {
       [nowPlayingInfo setObject:[NSNumber numberWithFloat:isPlaying ? 1.0f : 0.0f] forKey:MPNowPlayingInfoPropertyPlaybackRate];
       
       if(isPlaying) {
-         
-         [self updateControlCenterImage:artworkUrl];
-         [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
+         NSURL *imageUrl = [NSURL URLWithString:artworkUrl];
+         dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+         dispatch_async(queue, ^{
+            UIImage *artworkImage = [UIImage imageWithData:[NSData dataWithContentsOfURL:imageUrl]];
+            if(artworkImage == nil) return;
+            
+            MPMediaItemArtwork *albumArt = [[MPMediaItemArtwork alloc] initWithImage: artworkImage];
+            [nowPlayingInfo setValue:albumArt forKey:MPMediaItemPropertyArtwork];
+            [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
+         });
       }
       
    } else {
