@@ -70,17 +70,19 @@ RCT_EXPORT_METHOD(play:(NSString *) streamUrl options:(NSDictionary *)options) {
    // Create a new AVPlayerItem with the asset and an
    // array of asset keys to be automatically loaded
    self.playerItem = [AVPlayerItem playerItemWithAsset:asset automaticallyLoadedAssetKeys:assetKeys];
-   
+     
    // Associate the player item with the player + emit buffering event
    [self.bridge.eventDispatcher sendDeviceEventWithName:@"AudioBridgeEvent" body:@{@"status": @"BUFFERING"}];
    self.audioPlayer = [AVPlayer playerWithPlayerItem:self.playerItem];
-   
+   self.audioPlayer.automaticallyWaitsToMinimizeStalling = true;
    // set observers
    [self.audioPlayer addObserver:self forKeyPath:@"status" options:0 context:nil];
    [self.audioPlayer addObserver:self forKeyPath:@"rate" options:0 context:nil];
    
    [self.playerItem addObserver:self forKeyPath:@"timedMetadata" options:NSKeyValueObservingOptionNew context:nil];
    [self.playerItem addObserver:self forKeyPath:@"loadedTimeRanges" options:NSKeyValueObservingOptionNew context:nil];
+   [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(playerItemStalled:) name:AVPlayerItemPlaybackStalledNotification object:self.playerItem];
+
    
    
    self.lastUrlString = streamUrl;
@@ -137,7 +139,7 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback) {
 #pragma mark - AVPlayer Observers
 
 - (void) observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
-   
+   NSLog(@"Changing player status");
    if (object == self.audioPlayer && [keyPath isEqualToString:@"status"]) {
       if (self.audioPlayer.status == AVPlayerStatusFailed) {
          NSLog(@"AVPlayer Failed");
@@ -180,6 +182,14 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback) {
                                                                                    @"key": @"StreamTitle",
                                                                                    @"value": new
                                                                                    }];
+}
+
+- (void) playerItemStalled:(NSNotification *)notification {
+   NSError *error = notification.userInfo[AVPlayerItemFailedToPlayToEndTimeErrorKey];
+   NSLog(@"CHANGE NETWORK CONDITIONS");
+   NSLog(@"%@",error);
+   [self play:self.lastUrlString options:self.lastOptions];
+   
 }
 
 #pragma mark - Audio Session
