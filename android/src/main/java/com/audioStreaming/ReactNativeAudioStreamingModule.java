@@ -4,6 +4,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.media.AudioManager;
 import android.os.IBinder;
 import android.text.TextUtils;
 import android.util.Log;
@@ -98,9 +99,20 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
 
   @ReactMethod
   public void play(String streamingURL, ReadableMap options) {
-    this.streamingURL = streamingURL;
-    this.shouldShowNotification = options.hasKey(SHOULD_SHOW_NOTIFICATION) && options.getBoolean(SHOULD_SHOW_NOTIFICATION);
-    playInternal();
+
+
+    AudioManager am = (AudioManager)context.getSystemService(Context.AUDIO_SERVICE);
+    int amResult = am.requestAudioFocus(focusChangeListener,
+            AudioManager.STREAM_MUSIC,
+            AudioManager.AUDIOFOCUS_GAIN);
+
+    if (amResult == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+      this.streamingURL = streamingURL;
+      this.shouldShowNotification = options.hasKey(SHOULD_SHOW_NOTIFICATION) && options.getBoolean(SHOULD_SHOW_NOTIFICATION);
+      playInternal();
+
+    }
+
   }
 
   @ReactMethod
@@ -153,5 +165,32 @@ public class ReactNativeAudioStreamingModule extends ReactContextBaseJavaModule
 
     }
   }
+
+  private AudioManager.OnAudioFocusChangeListener focusChangeListener =
+          new AudioManager.OnAudioFocusChangeListener() {
+            public void onAudioFocusChange(int focusChange) {
+              AudioManager am =(AudioManager)context.getSystemService(Context.AUDIO_SERVICE);
+              switch (focusChange) {
+
+                case (AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) :
+                  // Lower the volume while ducking.
+                  signal.setVolume(0.2f);
+                  break;
+                case (AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) :
+                  stop();
+                  break;
+
+                case (AudioManager.AUDIOFOCUS_LOSS) :
+                  stop();
+                  break;
+
+                case (AudioManager.AUDIOFOCUS_GAIN) :
+                  signal.setVolume(1.0f);
+                  break;
+                default: break;
+              }
+            }
+          };
+
 
 }

@@ -253,12 +253,16 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
      * Player controls
      */
 
-    void updateMetadata(String title, String artist) {
+    public void updateMetadata(String title, String artist) {
         if(this.isPlaying()) {
             notifyBuilder.setContentTitle(title);
             notifyBuilder.setContentText(artist);
             notifyManager.notify(NOTIFY_ME_ID, notifyBuilder.build());
         }
+    }
+
+    public void setVolume(float audioVolume) {
+        this.player.setVolume(audioVolume);
     }
 
     public void play() {
