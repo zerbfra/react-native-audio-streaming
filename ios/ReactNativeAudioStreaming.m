@@ -310,11 +310,11 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback) {
 - (void)registerRemoteControlEvents
 {
    MPRemoteCommandCenter *commandCenter = [MPRemoteCommandCenter sharedCommandCenter];
-   [commandCenter.playCommand addTarget:self action:@selector(didReceivePlayCommand:)];
-   [commandCenter.pauseCommand addTarget:self action:@selector(didReceivePauseCommand:)];
+   //[commandCenter.playCommand addTarget:self action:@selector(didReceivePlayCommand:)];
+   //[commandCenter.pauseCommand addTarget:self action:@selector(didReceivePauseCommand:)];
    [commandCenter.togglePlayPauseCommand addTarget:self action:@selector(didReceiveToggleCommand:)];
-   commandCenter.playCommand.enabled = YES;
-   commandCenter.pauseCommand.enabled = YES;
+   commandCenter.playCommand.enabled = NO;
+   commandCenter.pauseCommand.enabled = NO;
    commandCenter.stopCommand.enabled = NO;
    commandCenter.nextTrackCommand.enabled = NO;
    commandCenter.previousTrackCommand.enabled = NO;
@@ -337,16 +337,18 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback) {
 - (MPRemoteCommandHandlerStatus)didReceiveToggleCommand:(MPRemoteCommand *)event
 {
    NSLog(@"didReceiveToggleCommand");
+   NSLog(@"%@", [self getCurrentStatus]);
    if ([[self getCurrentStatus] isEqualToString:@"STOPPED"]) [self play:self.lastUrlString options:self.lastOptions];
-   else [self stop];
+   if ([[self getCurrentStatus] isEqualToString:@"PLAYING"]) [self stop];
    return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (void)unregisterRemoteControlEvents
 {
    MPRemoteCommandCenter *commandCenter = [MPRemoteCommandCenter sharedCommandCenter];
-   [commandCenter.playCommand removeTarget:self];
-   [commandCenter.pauseCommand removeTarget:self];
+   //[commandCenter.playCommand removeTarget:self];
+   //[commandCenter.pauseCommand removeTarget:self];
+   [commandCenter.togglePlayPauseCommand removeTarget:self];
 }
 
 #pragma mark - Control Center Now playing infos
