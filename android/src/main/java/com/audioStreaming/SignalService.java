@@ -112,6 +112,18 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
         }
     }
 
+    public Class getMainActivityClass() {
+        String packageName = context.getPackageName();
+        Intent launchIntent = context.getPackageManager().getLaunchIntentForPackage(packageName);
+        String className = launchIntent.getComponent().getClassName();
+        try {
+            return Class.forName(className);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     private void runAsForeground() {
         notifyBuilder = new NotificationCompat.Builder(this)
                 .setSmallIcon(android.R.drawable.ic_media_play) // TODO Use app icon instead
@@ -128,6 +140,11 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
                 notifyManager.createNotificationChannel(channel);
             }
         }
+        
+        Intent launchActivity = new Intent(context, getMainActivityClass());
+        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, launchActivity, 0);
+        notifyBuilder.setContentIntent(pendingIntent);
+
         notification = notifyBuilder.build();
     }
 
