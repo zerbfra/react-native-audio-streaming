@@ -125,11 +125,10 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
     }
 
     private void runAsForeground() {
-
+        String NOTIFICATION_CHANNEL_ID = "com.trxradio";
         notifyManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-             String NOTIFICATION_CHANNEL_ID = "com.trxradio";
             NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, "TRX Audio Streaming", NotificationManager.IMPORTANCE_HIGH);
             if (notifyManager != null) {
                 notifyManager.createNotificationChannel(channel);
