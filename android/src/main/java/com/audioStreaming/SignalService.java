@@ -125,17 +125,12 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
     }
 
     private void runAsForeground() {
-        notifyBuilder = new NotificationCompat.Builder(this)
-                .setSmallIcon(android.R.drawable.ic_media_play) // TODO Use app icon instead
-                .setColor(Color.parseColor("#AB0074"))
-                .setContentTitle("TRX Radio")
-                .setContentText("Caricamento in corso...");
-
 
         notifyManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel("com.audioStreaming", "Audio Streaming", NotificationManager.IMPORTANCE_HIGH);
+             String NOTIFICATION_CHANNEL_ID = "com.trxradio";
+            NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, "TRX Audio Streaming", NotificationManager.IMPORTANCE_HIGH);
             if (notifyManager != null) {
                 notifyManager.createNotificationChannel(channel);
             }
@@ -144,11 +139,13 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
         Intent launchActivity = new Intent(context, getMainActivityClass());
         PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, launchActivity, 0);
         notifyBuilder.setContentIntent(pendingIntent);
-
+        notifyBuilder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_media_play) // TODO Use app icon instead
+                .setColor(Color.parseColor("#AB0074"))
+                .setContentTitle("TRX Radio")
+                .setContentText("Caricamento in corso...");
         notification = notifyBuilder.build();
     }
-
-
 
 
     public void setURLStreaming(String streamingURL) {
@@ -285,22 +282,8 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
         this.player.setVolume(audioVolume);
     }
 
-    private void startMyOwnForeground(Notification notification){
-    String NOTIFICATION_CHANNEL_ID = "com.trxradio";
-    String channelName = "TRX Radio Audio Streaming";
-    NotificationChannel chan = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_NONE);
-    chan.setLightColor(Color.BLUE);
-    chan.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
-    NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-    assert manager != null;
-    manager.createNotificationChannel(chan);
-
-    startForeground(NOTIFY_ME_ID, notification);
-    }
-
     public void play() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startMyOwnForeground(notification);
-        else startForeground(NOTIFY_ME_ID, notification);
+        startForeground(NOTIFY_ME_ID, notification);
   
         // Create player
         Handler mainHandler = new Handler();
