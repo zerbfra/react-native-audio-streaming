@@ -285,16 +285,23 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
         this.player.setVolume(audioVolume);
     }
 
-    public void play() {
-        startForeground(NOTIFY_ME_ID, notification);
-        /*
-        if (player != null) {
-            player.setPlayWhenReady(false);
-            player.stop();
-            player.seekTo(0);
-        }
-        */
+    private void startMyOwnForeground(Notification notification){
+    String NOTIFICATION_CHANNEL_ID = "com.trxradio";
+    String channelName = "TRX Radio Audio Streaming";
+    NotificationChannel chan = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_NONE);
+    chan.setLightColor(Color.BLUE);
+    chan.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+    NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+    assert manager != null;
+    manager.createNotificationChannel(chan);
 
+    startForeground(NOTIFY_ME_ID, notification);
+    }
+
+    public void play() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startMyOwnForeground(notification);
+        else startForeground(NOTIFY_ME_ID, notification);
+  
         // Create player
         Handler mainHandler = new Handler();
         TrackSelector trackSelector = new DefaultTrackSelector();
