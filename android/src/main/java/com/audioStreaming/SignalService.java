@@ -230,7 +230,6 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
 
     @Override
     public void onPlayerError(ExoPlaybackException error) {
-        Log.d(TAG, error.getMessage());
         sendBroadcast(new Intent(Mode.ERROR));
     }
 
