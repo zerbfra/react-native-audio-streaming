@@ -125,17 +125,11 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
     }
 
     private void runAsForeground() {
-        notifyBuilder = new NotificationCompat.Builder(this)
-                .setSmallIcon(android.R.drawable.ic_media_play) // TODO Use app icon instead
-                .setColor(Color.parseColor("#AB0074"))
-                .setContentTitle("TRX Radio")
-                .setContentText("Caricamento in corso...");
-
-
+        String NOTIFICATION_CHANNEL_ID = "com.trxradio";
         notifyManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel("com.audioStreaming", "Audio Streaming", NotificationManager.IMPORTANCE_HIGH);
+            NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, "TRX Audio Streaming", NotificationManager.IMPORTANCE_LOW);
             if (notifyManager != null) {
                 notifyManager.createNotificationChannel(channel);
             }
@@ -143,12 +137,14 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
         
         Intent launchActivity = new Intent(context, getMainActivityClass());
         PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, launchActivity, 0);
+        notifyBuilder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_media_play) // TODO Use app icon instead
+                .setColor(Color.parseColor("#AB0074"))
+                .setContentTitle("TRX Radio")
+                .setContentText("Caricamento in corso...");
         notifyBuilder.setContentIntent(pendingIntent);
-
         notification = notifyBuilder.build();
     }
-
-
 
 
     public void setURLStreaming(String streamingURL) {
@@ -286,14 +282,7 @@ public class SignalService extends Service implements ExoPlayer.EventListener, M
 
     public void play() {
         startForeground(NOTIFY_ME_ID, notification);
-        /*
-        if (player != null) {
-            player.setPlayWhenReady(false);
-            player.stop();
-            player.seekTo(0);
-        }
-        */
-
+  
         // Create player
         Handler mainHandler = new Handler();
         TrackSelector trackSelector = new DefaultTrackSelector();
