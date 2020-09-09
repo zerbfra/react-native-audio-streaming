@@ -45,7 +45,7 @@ RCT_EXPORT_MODULE()
 #pragma mark - Pubic API
 
 RCT_EXPORT_METHOD(play:(NSString *) streamUrl options:(NSDictionary *)options) {
-   
+
    if(![self activate]) return;
    
    @try {
@@ -237,6 +237,16 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback) {
                                                  object:nil];
 }
 
+- (void) manageInterruption: (Boolean) isStop {
+   if(isStop) {
+      if (self.audioPlayer) {
+         [self.audioPlayer pause];
+      }
+   } else {
+      [self.audioPlayer play];
+   }
+}
+
 - (void)onAudioInterruption:(NSNotification *)notification {
    
    // Get the AVAudioSessionInterruptionTypeKey enum
@@ -247,12 +257,12 @@ RCT_EXPORT_METHOD(getStatus: (RCTResponseSenderBlock) callback) {
    {
       case AVAudioSessionInterruptionTypeBegan:
          NSLog(@"Audio Session Interruption case started.");
-         [self stop];
+         [self manageInterruption:true];
          break;
          
       case AVAudioSessionInterruptionTypeEnded:
          NSLog(@"Audio Session Interruption case ended.");
-         [self play:self.lastUrlString options:self.lastOptions];
+         [self manageInterruption:false];
          break;
          
       default:
